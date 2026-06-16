@@ -10,14 +10,14 @@ export function Layout() {
   return (
     <>
       <nav className="nav">
-        <div className="brand">On<span>The</span>Way</div>
-        <div className="links grow">
+        <div className="brand"><span className="mark" />On<span>The</span>Way</div>
+        <div className="links">
           <NavLink to="/" end>Discover</NavLink>
           <NavLink to="/orders">My Orders</NavLink>
           {user?.role === 'MERCHANT' && <NavLink to="/merchant">Merchant Console</NavLink>}
           <NavLink to="/checkout">Cart{cartCount > 0 ? ` (${cartCount})` : ''}</NavLink>
         </div>
-        <div className="row">
+        <div className="who">
           <span className="muted small">{user?.name} · {user?.role}</span>
           <button className="ghost" onClick={logout}>Log out</button>
         </div>

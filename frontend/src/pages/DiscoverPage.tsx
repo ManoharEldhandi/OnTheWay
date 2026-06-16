@@ -62,8 +62,8 @@ export function DiscoverPage() {
       </div>
 
       <div className="card col">
-        <div className="row wrap">
-          <div className="col grow">
+        <div className="filters-grid">
+          <div className="col">
             <label>Your location</label>
             <div className="row wrap">
               {LOCATION_PRESETS.map((p) => (
@@ -75,7 +75,7 @@ export function DiscoverPage() {
                   {p.label}
                 </button>
               ))}
-              <button className="chip" onClick={useMyLocation}>📍 Use my location</button>
+              <button className="chip" onClick={useMyLocation}>Use my location</button>
             </div>
           </div>
           <div className="col">
@@ -93,31 +93,38 @@ export function DiscoverPage() {
         </div>
       </div>
 
-      <MapView center={coords} stores={stores} selectedId={selected} onSelect={setSelected} />
-
       {error && <div className="error">{error}</div>}
       {loading && <div className="muted">Searching…</div>}
-      {!loading && stores.length === 0 && <div className="muted">No stores within {radiusKm} km. Try a wider radius.</div>}
 
-      <div className="grid cards">
-        {stores.map((s) => (
-          <div key={s.merchantId} className="card col"
-               style={{ outline: selected === s.merchantId ? '2px solid var(--brand-2)' : 'none' }}>
-            <div className="spread">
-              <strong>{s.storeName}</strong>
-              <span className="badge brand">{s.storeType.toLowerCase()}</span>
+      <div className="discovery-grid">
+        <MapView center={coords} stores={stores} selectedId={selected} onSelect={setSelected} />
+
+        <div className="col">
+          {!loading && stores.length === 0 && (
+            <div className="card muted">No stores within {radiusKm} km. Try a wider radius.</div>
+          )}
+          {stores.map((s) => (
+            <div
+              key={s.merchantId}
+              className={`card col selectable ${selected === s.merchantId ? 'selected' : ''}`}
+              onClick={() => setSelected(s.merchantId)}
+            >
+              <div className="spread">
+                <strong>{s.storeName}</strong>
+                <span className="badge steel">{s.storeType.toLowerCase()}</span>
+              </div>
+              <span className="muted small">{s.address}</span>
+              <div className="row wrap">
+                <span className="badge info">{s.distanceKm} km</span>
+                <span className="badge">{s.travelMins} min away</span>
+                {s.prepTimeMins != null && <span className="badge warn">~{s.prepTimeMins} min prep</span>}
+              </div>
+              <button className="primary" onClick={() => navigate(`/store/${s.merchantId}`)}>
+                View menu
+              </button>
             </div>
-            <span className="muted small">{s.address}</span>
-            <div className="row">
-              <span className="badge green">{s.distanceKm} km</span>
-              <span className="badge">{s.travelMins} min away</span>
-              {s.prepTimeMins != null && <span className="badge warn">~{s.prepTimeMins} min prep</span>}
-            </div>
-            <button className="primary" onClick={() => navigate(`/store/${s.merchantId}`)}>
-              View menu
-            </button>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </div>
   );

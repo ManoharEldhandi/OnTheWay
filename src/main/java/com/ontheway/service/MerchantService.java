@@ -3,7 +3,7 @@ package com.ontheway.service;
 import com.ontheway.dto.*;
 
 public interface MerchantService {
-    // ✅ Changed from Long userId → String email
+    /** Registers a merchant profile for the authenticated user identified by email. */
     MerchantResponseDTO registerMerchant(String email, MerchantCreateDTO dto);
 
     MerchantResponseDTO getMerchantById(Long merchantId);

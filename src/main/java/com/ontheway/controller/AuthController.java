@@ -34,6 +34,6 @@ public class AuthController {
         return ResponseEntity.ok().body(new AuthResponse(token));
     }
 
-    // Simple DTO for returning token
+    // Response body carrying the issued access token.
     private record AuthResponse(String token) {}
 }

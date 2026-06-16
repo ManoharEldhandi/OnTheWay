@@ -19,7 +19,7 @@ public class MerchantServiceImpl implements MerchantService {
     @Transactional
     @Override
     public MerchantResponseDTO registerMerchant(String email, MerchantCreateDTO dto) {
-        User user = userRepository.findByEmailIgnoreCase(email) // ✅ safely ignores case
+        User user = userRepository.findByEmailIgnoreCase(email)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + email));
 
         Merchant merchant = Merchant.builder()

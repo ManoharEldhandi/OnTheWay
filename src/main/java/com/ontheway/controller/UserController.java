@@ -18,7 +18,7 @@ public class UserController {
 
     private final UserService userService;
 
-    // ✅ Get any user by ID (only self or admin)
+    // Get a user by id; permitted only for the user themselves or an admin.
     @PreAuthorize("hasRole('USER') or hasRole('MERCHANT') or hasRole('ADMIN')")
     @GetMapping("/{id}")
     public ResponseEntity<?> getUser(
@@ -42,7 +42,7 @@ public class UserController {
         return ResponseEntity.ok(userService.getUserById(id));
     }
 
-    // ✅ Get logged-in user's own profile (using JWT)
+    // Get the authenticated user's own profile.
     @PreAuthorize("isAuthenticated()")
     @GetMapping("/me")
     public ResponseEntity<?> getCurrentUser(Authentication authentication) {
@@ -57,7 +57,7 @@ public class UserController {
         return ResponseEntity.ok(userDTO);
     }
 
-    // ✅ Update user profile (ADMIN or self only)
+    // Update a user profile; permitted only for the user themselves or an admin.
     @PreAuthorize("hasRole('USER') or hasRole('MERCHANT') or hasRole('ADMIN')")
     @PutMapping("/{id}")
     public ResponseEntity<?> updateUser(
@@ -85,7 +85,7 @@ public class UserController {
         return ResponseEntity.ok(userService.updateUser(id, dto));
     }
 
-    // ✅ Delete user (ADMIN or self only)
+    // Delete a user; permitted only for the user themselves or an admin.
     @PreAuthorize("hasRole('USER') or hasRole('MERCHANT') or hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteUser(

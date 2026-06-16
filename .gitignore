@@ -38,7 +38,9 @@ logs/
 # IDE
 .idea/
 *.iml
-.vscode/
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
 
 # Node / frontend
 node_modules/

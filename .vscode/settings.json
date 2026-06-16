@@ -1,0 +1,13 @@
+{
+  // The project targets Java 17 (Spring Boot 3.2 + Lombok). The system JDK on this
+  // machine is newer (Java 25+), which the language server cannot use to run Lombok's
+  // annotation processor — that produces spurious "cannot find symbol" / "variable never
+  // read" errors on Lombok-generated members. Pinning the language server to JDK 17
+  // resolves them. Adjust the path if your JDK 17 lives elsewhere.
+  "jdk.jdkhome": "/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home",
+  "jdk.project.jdkhome": "/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home",
+
+  "files.exclude": {
+    "**/target": true
+  }
+}

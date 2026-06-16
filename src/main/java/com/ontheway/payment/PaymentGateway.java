@@ -3,10 +3,10 @@ package com.ontheway.payment;
 /**
  * Processes payments through some provider.
  *
- * <p>Implementations are swappable via {@code ontheway.payment.provider}. The default
- * {@link MockPaymentGateway} is keyless and deterministic (auto-confirms) so the full
- * order→pay flow runs and is tested without real payment credentials. Real Stripe/Razorpay
- * implementations (SDKs already on the classpath) can be added without changing callers.
+ * with a mock implementation. The default {@link MockPaymentGateway} is keyless and
+ * deterministic (auto-confirms) so the full order-to-payment flow runs and is tested without
+ * real payment credentials. Real Stripe/Razorpay implementations (SDKs already on the
+ * classpath) can be added without changing callers.
  */
 public interface PaymentGateway {
 

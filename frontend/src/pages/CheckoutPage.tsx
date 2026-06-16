@@ -75,31 +75,31 @@ export function CheckoutPage() {
       <h1 className="title">Checkout</h1>
 
       {quote && (
-        <div className="card">
-          <span className="badge green">ETA-synced pickup</span>
-          <div className="eta" style={{ marginTop: 12 }}>
-            <div>
-              <div className="muted small">Ready in</div>
-              <div className="big">{minutesUntil(quote.readyAt)} min</div>
-              <div className="muted small">at {new Date(quote.readyAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+        <div className="card pad-lg">
+          <span className="badge ok">ETA-synced pickup</span>
+          <div className="eta-grid" style={{ marginTop: 12 }}>
+            <div className="eta-metric">
+              <div className="label">Ready in</div>
+              <div className="value">{minutesUntil(quote.readyAt)} min</div>
+              <div className="meta">at {new Date(quote.readyAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
             </div>
-            <div>
-              <div className="muted small">The store starts preparing</div>
-              <div className="big">{minutesUntil(quote.prepStartAt) === 0 ? 'now' : `in ${minutesUntil(quote.prepStartAt)} min`}</div>
-              <div className="muted small">so it's fresh on arrival</div>
+            <div className="eta-metric">
+              <div className="label">The store starts preparing</div>
+              <div className="value">{minutesUntil(quote.prepStartAt) === 0 ? 'now' : `in ${minutesUntil(quote.prepStartAt)} min`}</div>
+              <div className="meta">so it's fresh on arrival</div>
             </div>
           </div>
           <div className="timeline">
             <div className="dot on" />
             <div className="seg on" />
-            <span className="badge">{quote.travelMins} min travel</span>
+            <span className="badge info">{quote.travelMins} min travel</span>
             <div className="seg on" />
             <span className="badge warn">{quote.prepTimeMins}+{quote.bufferMins} min prep</span>
             <div className="seg on" />
             <div className="dot on" />
           </div>
           <p className="muted small" style={{ marginTop: 8 }}>
-            {quote.distanceKm} km away · we time the kitchen to your arrival.
+            {quote.distanceKm} km away · the kitchen is timed to your arrival.
           </p>
         </div>
       )}
@@ -121,7 +121,7 @@ export function CheckoutPage() {
       {error && <div className="error">{error}</div>}
 
       <div className="row">
-        <button className="ghost" onClick={() => navigate(-1)}>← Keep shopping</button>
+        <button className="ghost" onClick={() => navigate(-1)}>Keep shopping</button>
         <button className="success grow" disabled={placing} onClick={placeOrder}>
           {placing ? 'Placing order…' : 'Place order'}
         </button>

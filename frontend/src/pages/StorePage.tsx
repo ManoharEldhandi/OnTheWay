@@ -34,7 +34,7 @@ export function StorePage() {
           <h1 className="title">Menu</h1>
           <p className="sub">Add items, then check out with a live ETA.</p>
         </div>
-        <button className="ghost" onClick={() => navigate('/')}>← Back to discovery</button>
+        <button className="ghost" onClick={() => navigate('/')}>Back to discovery</button>
       </div>
 
       {error && <div className="error">{error}</div>}
@@ -70,9 +70,9 @@ export function StorePage() {
       </div>
 
       {cartCount > 0 && (
-        <div className="card spread" style={{ position: 'sticky', bottom: 16 }}>
+        <div className="card spread sticky-bar">
           <span><strong>{cartCount}</strong> item(s) · <span className="price">₹{cart.total.toFixed(0)}</span></span>
-          <button className="success" onClick={() => navigate('/checkout')}>Go to checkout →</button>
+          <button className="success" onClick={() => navigate('/checkout')}>Go to checkout</button>
         </div>
       )}
     </div>

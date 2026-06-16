@@ -45,8 +45,11 @@ export function LoginPage() {
 
   return (
     <div className="center">
-      <div className="card col" style={{ width: 380 }}>
-        <div className="brand" style={{ fontSize: 24 }}>On<span>The</span>Way</div>
+      <div className="card col login-card">
+        <div className="row">
+          <span className="login-mark" />
+          <div className="brand" style={{ fontSize: 24 }}>On<span>The</span>Way</div>
+        </div>
         <p className="sub">Order ahead. Arrive. Pick up. Get on your way.</p>
 
         <form className="col" onSubmit={submit}>

@@ -57,7 +57,7 @@ export function OrderPage() {
         <div className="card spread">
           <span className="muted small">Payment</span>
           <span>
-            <span className={`badge ${payment.paymentStatus === 'COMPLETED' ? 'green' : 'warn'}`}>
+            <span className={`badge ${payment.paymentStatus === 'COMPLETED' ? 'ok' : 'warn'}`}>
               {payment.paymentStatus}
             </span>
             {payment.gateway && <span className="muted small"> · via {payment.gateway}</span>}
@@ -67,9 +67,9 @@ export function OrderPage() {
 
       <div className="card col">
         <div className="muted small">Pickup time</div>
-        <div className="big">
+        <div className="eta-metric"><div className="value">
           {new Date(order.pickupTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-        </div>
+        </div></div>
         {order.etaSegment && <span className="muted small">{order.etaSegment}</span>}
 
         {!cancelled && (

@@ -1,17 +1,16 @@
 # OnTheWay — To-Do (execution backlog)
 
-> Derived from `ARCHITECTURE.md`. Ordered by value + risk. Each task is atomic and
-> assignable. Workflow per task: **Senior Dev builds → Senior Tester writes/runs tests +
-> regression → bugs back to Dev (with Architect) → green → mark done → Senior Doc Writer
-> documents** under `docs/`.
+> Derived from [ARCHITECTURE.md](ARCHITECTURE.md). Ordered by value and risk. Each task is
+> atomic and independently deliverable. Workflow per task: implement → write and run tests
+> (unit/slice/integration) → fix any regressions → mark done → document under `docs/`.
 >
 > Status keys: `[ ]` not started · `[~]` in progress · `[x]` done (tested + documented).
 
-> **Progress snapshot:** Phases 0 (stabilize+secure), 1 (geo enabler), 2 (ETA engine,
-> discovery, auto-advance scheduler), 3 (payments via gateway), and 5 (web frontend) are
-> delivered, tested (47 backend tests, all green), and documented. Phase 4 delivery
-> (Docker, CI) is in place. The product is **demoable end-to-end** (zero-setup `demo`
-> profile + React app). Remaining items below are enhancements, not blockers.
+> **Progress snapshot:** Phases 0 (stabilize + secure), 1 (store geo), 2 (ETA engine,
+> discovery, auto-advance scheduler), 3 (payments via gateway), 4 (Docker, CI, Actuator),
+> and 5 (web frontend) are delivered, tested, and documented. The product runs end-to-end
+> with a zero-setup `demo` profile and the React app. A load test demonstrates 1,000
+> concurrent users with zero errors. Remaining items below are enhancements, not blockers.
 
 ---
 
@@ -83,8 +82,8 @@
 ---
 
 ### Definition of Done (every task)
-1. Code complete, server-authoritative, secure, follows `ARCHITECTURE.md`.
-2. Tests written and green (unit + slice/integration as relevant); regression clean.
-3. No new bugs from the tester; architect concerns resolved.
+1. Code complete, server-authoritative, and secure, consistent with [ARCHITECTURE.md](ARCHITECTURE.md).
+2. Tests written and passing (unit + slice/integration as relevant); regression clean.
+3. No known defects remaining.
 4. Feature documented under `docs/`.
 5. To-do checkbox flipped to `[x]`.

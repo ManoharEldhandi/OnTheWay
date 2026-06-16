@@ -44,18 +44,18 @@ export function MapView({ center, stores, selectedId, onSelect, height = 320 }: 
     <svg className="card" viewBox={`0 0 ${W} ${H}`} width="100%" height={H} role="img" aria-label="Map of nearby stores">
       <defs>
         <radialGradient id="meGlow" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stopColor="#5b8cff" stopOpacity="0.9" />
-          <stop offset="100%" stopColor="#5b8cff" stopOpacity="0" />
+          <stop offset="0%" stopColor="#64748b" stopOpacity="0.55" />
+          <stop offset="100%" stopColor="#64748b" stopOpacity="0" />
         </radialGradient>
       </defs>
-      <rect x="0" y="0" width={W} height={H} fill="#0e1730" rx="14" />
+      <rect x="0" y="0" width={W} height={H} fill="#f4f5f7" rx="12" />
 
       {/* subtle grid */}
       {Array.from({ length: 8 }).map((_, i) => (
-        <line key={`v${i}`} x1={(W / 8) * i} y1="0" x2={(W / 8) * i} y2={H} stroke="#16223f" strokeWidth="1" />
+        <line key={`v${i}`} x1={(W / 8) * i} y1="0" x2={(W / 8) * i} y2={H} stroke="#e3e6ea" strokeWidth="1" />
       ))}
       {Array.from({ length: 5 }).map((_, i) => (
-        <line key={`h${i}`} x1="0" y1={(H / 5) * i} x2={W} y2={(H / 5) * i} stroke="#16223f" strokeWidth="1" />
+        <line key={`h${i}`} x1="0" y1={(H / 5) * i} x2={W} y2={(H / 5) * i} stroke="#e3e6ea" strokeWidth="1" />
       ))}
 
       {/* route to selected store */}
@@ -63,7 +63,7 @@ export function MapView({ center, stores, selectedId, onSelect, height = 320 }: 
         <line
           x1={me.x} y1={me.y}
           x2={project(selected).x} y2={project(selected).y}
-          stroke="#38d39f" strokeWidth="2.5" strokeDasharray="6 6"
+          stroke="#4b5563" strokeWidth="2.5" strokeDasharray="6 6"
         />
       )}
 
@@ -75,11 +75,11 @@ export function MapView({ center, stores, selectedId, onSelect, height = 320 }: 
           <g key={s.merchantId} style={{ cursor: onSelect ? 'pointer' : 'default' }}
              onClick={() => onSelect?.(s.merchantId)}>
             <circle cx={p.x} cy={p.y} r={isSel ? 9 : 7}
-                    fill={isSel ? '#38d39f' : '#5b8cff'} stroke="#0e1730" strokeWidth="2" />
-            <text x={p.x + 12} y={p.y + 4} fill="#e8edf7" fontSize="12" fontWeight="600">
+                    fill={isSel ? '#3a8c6e' : '#64748b'} stroke="#ffffff" strokeWidth="2" />
+            <text x={p.x + 12} y={p.y + 4} fill="#1f2630" fontSize="12" fontWeight="600">
               {s.storeName}
             </text>
-            <text x={p.x + 12} y={p.y + 19} fill="#9aa7c2" fontSize="11">
+            <text x={p.x + 12} y={p.y + 19} fill="#6b7280" fontSize="11">
               {s.distanceKm} km · {s.travelMins} min
             </text>
           </g>
@@ -88,8 +88,8 @@ export function MapView({ center, stores, selectedId, onSelect, height = 320 }: 
 
       {/* the customer */}
       <circle cx={me.x} cy={me.y} r="22" fill="url(#meGlow)" />
-      <circle cx={me.x} cy={me.y} r="6" fill="#fff" stroke="#5b8cff" strokeWidth="3" />
-      <text x={me.x + 12} y={me.y - 10} fill="#9aa7c2" fontSize="11" fontWeight="700">You</text>
+      <circle cx={me.x} cy={me.y} r="6" fill="#ffffff" stroke="#4b5563" strokeWidth="3" />
+      <text x={me.x + 12} y={me.y - 10} fill="#6b7280" fontSize="11" fontWeight="700">You</text>
     </svg>
   );
 }
