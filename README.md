@@ -53,20 +53,24 @@ docker compose up --build        # backend on :8080, MySQL on :3306 (dev profile
 API docs (Swagger UI): http://localhost:8080/swagger-ui.html ·
 Health: http://localhost:8080/actuator/health
 
+For full setup, configuration, and a guided walkthrough, see [docs/USAGE.md](docs/USAGE.md).
+
 ---
 
 ## What works today
 
 - **Auth**: JWT (validate-before-parse), BCrypt, role-based + ownership-checked authorization.
-- **ETA engine**: `POST /api/eta/quote`; orders accept a live location and are ETA-synchronized.
+- **ETA engine**: `POST /api/eta/quote`; orders accept a live location and are ETA-synchronized;
+  a scheduler starts preparation automatically at the computed time.
 - **Discovery**: `GET /api/discovery/nearby` — radius + category, nearest-first, travel-time annotated.
 - **Ordering**: server-authoritative validation, a real status **state machine**
   (`PLACED → PREPARING → READY → PICKED`, `→ CANCELLED`), and an immutable audit trail.
-- **Catalog**: stores (with geo + prep time) and products across multiple verticals.
-- **Web app**: discovery on a map → menu → cart → ETA checkout → live order tracking; plus a
-  merchant console.
+- **Payments**: a gateway abstraction with a keyless mock provider; idempotent, ownership-checked.
+- **Catalog**: stores (with geo + prep time) and menu items across multiple verticals.
+- **Web app**: discovery on a map → menu → cart → ETA checkout → live order tracking, plus a
+  merchant console; a grey-and-silver, grid-based interface.
 - **Engineering**: Flyway migrations, profiles (`dev`/`test`/`prod`/`demo`), externalized
-  secrets, 39 backend tests (hermetic, H2 + real migrations), Docker + CI.
+  secrets, a hermetic test suite (H2 + real migrations), a 1,000-user load test, Docker + CI.
 
 ---
 
@@ -86,16 +90,17 @@ Health: http://localhost:8080/actuator/health
 ```
 .
 ├── ARCHITECTURE.md         # system design (C4 views, ADRs, roadmap)
-├── to-do.md                # ordered, assignable backlog (progress tracker)
-├── docs/                   # per-feature documentation
+├── to-do.md                # ordered backlog and progress tracker
+├── docs/                   # usage guide, stress testing, and per-feature docs
 ├── src/main/java/com/ontheway/
 │   ├── controller/  service/  repository/  model/  dto/  exception/  security/
-│   ├── fulfillment/        # RouteProvider + ETA engine (the differentiator)
+│   ├── fulfillment/        # RouteProvider + ETA engine + scheduler (the differentiator)
+│   ├── payment/            # PaymentGateway abstraction + mock provider
 │   └── config/             # CORS, Swagger, app beans, demo seeder
 ├── src/main/resources/
-│   ├── application*.yml     # profile config
-│   └── db/migration/        # Flyway V1..V3
-├── src/test/java/...        # unit + slice + integration tests
+│   ├── application*.yml     # profile configuration
+│   └── db/migration/        # Flyway V1..V5
+├── src/test/java/...        # unit, slice, integration, and load tests
 ├── frontend/                # React + TS + Vite web client
 ├── Dockerfile  docker-compose.yml  .github/workflows/ci.yml
 └── pom.xml
@@ -107,18 +112,25 @@ Health: http://localhost:8080/actuator/health
 
 ```bash
 export JAVA_HOME="$(/usr/libexec/java_home -v 17 2>/dev/null || echo /opt/homebrew/opt/openjdk@17)"
-mvn -s custom-m2/settings.xml clean test     # 39 tests, hermetic (no Docker/MySQL needed)
+mvn -s custom-m2/settings.xml clean test     # hermetic suite (no Docker/MySQL needed)
 cd frontend && npm run build                 # strict type-check + production bundle
 ```
+
+For the 1,000-user load test, see [docs/STRESS_TESTING.md](docs/STRESS_TESTING.md).
 
 ---
 
 ## Documentation
 
-- [ARCHITECTURE.md](ARCHITECTURE.md) — the full system design and rationale.
-- [docs/phase-0-stabilization-and-security.md](docs/phase-0-stabilization-and-security.md)
-- [docs/phase-2-eta-and-discovery.md](docs/phase-2-eta-and-discovery.md)
-- [docs/phase-5-frontend.md](docs/phase-5-frontend.md)
+- [docs/USAGE.md](docs/USAGE.md) — how to set up, run, and use the platform.
+- [ARCHITECTURE.md](ARCHITECTURE.md) — system design and rationale.
+- [docs/STRESS_TESTING.md](docs/STRESS_TESTING.md) — load testing guide.
+- [to-do.md](to-do.md) — backlog and progress.
+- Per-feature docs:
+  [phase-0](docs/phase-0-stabilization-and-security.md),
+  [phase-2 (ETA + discovery)](docs/phase-2-eta-and-discovery.md),
+  [phase-3 (payments)](docs/phase-3-payments.md),
+  [phase-5 (frontend)](docs/phase-5-frontend.md).
 
 ---
 

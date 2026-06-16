@@ -58,10 +58,10 @@
 
 ## Phase 4 — Prove it (quality & delivery)
 
-- [ ] **T4.1** **Dockerfile** (multi-stage) + **docker-compose** (app + MySQL); one-command up.
-- [ ] **T4.2** **CI** (GitHub Actions): build → test → image; coverage gate.
-- [ ] **T4.3** **Observability**: Actuator health/readiness, Micrometer metrics, structured logs + correlation id.
-      _(Actuator health/info/metrics enabled; structured logs + correlation id pending.)_
+- [x] **T4.1** **Dockerfile** (multi-stage) + **docker-compose** (app + MySQL); one-command up.
+- [x] **T4.2** **CI** (GitHub Actions): backend build + test, frontend build. _(Image publish + coverage gate deferred.)_
+- [~] **T4.3** **Observability**: Actuator health/info/metrics enabled; request correlation id in logs.
+      _(Micrometer dashboards deferred.)_
 - [ ] **T4.4** Regression pass across all modules; performance sanity on discovery/ETA.
 
 ## Phase 5 — Show it (frontend, end-to-end)
@@ -75,8 +75,8 @@
 
 ## Phase 6 — Document & demo assets
 
-- [ ] **T6.1** Make **README truthful**; top-level **docs/** index.
-- [ ] **T6.2** Per-feature docs (kept current as each feature lands — the doc-writer step).
+- [x] **T6.1** **README truthful** + top-level **docs/** index (usage, stress testing, per-feature).
+- [x] **T6.2** Per-feature docs, kept current as each feature landed.
 - [ ] **T6.3** **API collection** (Postman/Bruno) + architecture diagrams export.
 
 ---
