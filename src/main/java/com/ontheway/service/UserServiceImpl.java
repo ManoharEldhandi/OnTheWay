@@ -1,8 +1,11 @@
 package com.ontheway.service.impl;
 
 import com.ontheway.dto.*;
+import com.ontheway.exception.BadRequestException;
+import com.ontheway.exception.ConflictException;
 import com.ontheway.exception.ResourceNotFoundException;
 import com.ontheway.model.User;
+import com.ontheway.model.enums.UserRole;
 import com.ontheway.repository.UserRepository;
 import com.ontheway.service.UserService;
 import lombok.RequiredArgsConstructor;
@@ -19,11 +22,22 @@ public class UserServiceImpl implements UserService {
     @Transactional
     @Override
     public UserResponseDTO registerUser(UserCreateDTO dto) {
+        // Prevent duplicate accounts (case-insensitive) -> 409 instead of a raw DB error.
+        if (userRepository.findByEmailIgnoreCase(dto.getEmail()).isPresent()) {
+            throw new ConflictException("An account with this email already exists");
+        }
+
+        // Security: ADMIN can never be self-assigned at registration. Default to USER.
+        UserRole requestedRole = dto.getRole() == null ? UserRole.USER : dto.getRole();
+        if (requestedRole == UserRole.ADMIN) {
+            throw new BadRequestException("ADMIN accounts cannot be self-registered");
+        }
+
         User user = User.builder()
                 .email(dto.getEmail())
                 .password(passwordEncoder.encode(dto.getPassword()))
                 .name(dto.getName())
-                .role(dto.getRole())
+                .role(requestedRole)
                 .build();
         userRepository.save(user);
         return toResponseDTO(user);

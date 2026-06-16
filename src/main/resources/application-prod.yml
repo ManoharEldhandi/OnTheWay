@@ -1,0 +1,26 @@
+# ===================================================================
+# OnTheWay — PROD profile (strict; everything from environment)
+# No secrets or hosts are hardcoded. The app fails fast if env is missing.
+# ===================================================================
+spring:
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: ${DB_POOL_MAX:20}
+  jpa:
+    hibernate:
+      # Flyway is the single source of truth for the schema.
+      ddl-auto: none
+    show-sql: false
+    database-platform: org.hibernate.dialect.MySQLDialect
+  flyway:
+    enabled: true
+    baseline-on-migrate: false
+
+logging:
+  level:
+    root: WARN
+    com.ontheway: INFO

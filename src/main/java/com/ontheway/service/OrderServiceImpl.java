@@ -1,9 +1,12 @@
 package com.ontheway.service.impl;
 
 import com.ontheway.dto.*;
+import com.ontheway.exception.BadRequestException;
+import com.ontheway.exception.ForbiddenException;
 import com.ontheway.exception.ResourceNotFoundException;
 import com.ontheway.model.*;
 import com.ontheway.model.enums.OrderStatus;
+import com.ontheway.model.enums.UserRole;
 import com.ontheway.repository.*;
 import com.ontheway.service.OrderService;
 
@@ -23,6 +26,7 @@ public class OrderServiceImpl implements OrderService {
     private final MerchantRepository merchantRepository;
     private final MenuItemRepository menuItemRepository;
     private final OrderItemRepository orderItemRepository;
+    private final OrderEventRepository orderEventRepository;
 
     @Transactional
     @Override
@@ -31,6 +35,10 @@ public class OrderServiceImpl implements OrderService {
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
         Merchant merchant = merchantRepository.findById(dto.getMerchantId())
                 .orElseThrow(() -> new ResourceNotFoundException("Merchant not found"));
+
+        if (dto.getItems() == null || dto.getItems().isEmpty()) {
+            throw new BadRequestException("An order must contain at least one item");
+        }
 
         Order order = Order.builder()
                 .user(user)
@@ -45,8 +53,24 @@ public class OrderServiceImpl implements OrderService {
         List<OrderItem> items = new ArrayList<>();
         double total = 0.0;
         for (OrderItemCreateDTO itemDTO : dto.getItems()) {
+            if (itemDTO.getQuantity() == null || itemDTO.getQuantity() < 1) {
+                throw new BadRequestException("Item quantity must be at least 1");
+            }
             MenuItem item = menuItemRepository.findById(itemDTO.getMenuItemId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Menu item not found"));
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Menu item not found: " + itemDTO.getMenuItemId()));
+
+            // Server-authoritative validation: the item must belong to the target
+            // merchant and be currently available. Prices come from the catalog, not the client.
+            if (!item.getMerchant().getMerchantId().equals(merchant.getMerchantId())) {
+                throw new BadRequestException(
+                        "Menu item " + item.getMenuItemId() + " does not belong to merchant "
+                                + merchant.getMerchantId());
+            }
+            if (Boolean.FALSE.equals(item.getAvailability())) {
+                throw new BadRequestException("Menu item is not available: " + item.getName());
+            }
+
             OrderItem orderItem = OrderItem.builder()
                     .order(order)
                     .menuItem(item)
@@ -60,14 +84,16 @@ public class OrderServiceImpl implements OrderService {
         order.setTotalAmount(total);
 
         orderRepository.save(order);
+        recordEvent(order, null, OrderStatus.PLACED, user.getEmail(), "Order placed");
         return toResponseDTO(order);
     }
 
     @Override
-    public OrderResponseDTO getOrderById(Long orderId) {
-        return orderRepository.findById(orderId)
-                .map(this::toResponseDTO)
+    public OrderResponseDTO getOrderById(Long orderId, String callerEmail) {
+        Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
+        assertCanView(order, resolveCaller(callerEmail));
+        return toResponseDTO(order);
     }
 
     @Override
@@ -84,12 +110,71 @@ public class OrderServiceImpl implements OrderService {
 
     @Transactional
     @Override
-    public OrderResponseDTO updateOrderStatus(Long orderId, String status) {
+    public OrderResponseDTO updateOrderStatus(Long orderId, String status, String callerEmail) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
-        order.setStatus(OrderStatus.valueOf(status));
+        User caller = resolveCaller(callerEmail);
+        assertCanManage(order, caller);
+
+        OrderStatus target = parseStatus(status);
+        OrderStatus current = order.getStatus();
+        if (!current.canTransitionTo(target)) {
+            throw new BadRequestException(
+                    "Illegal status transition: " + current + " -> " + target);
+        }
+
+        order.setStatus(target);
         orderRepository.save(order);
+        recordEvent(order, current, target, caller.getEmail(), "Status updated");
         return toResponseDTO(order);
+    }
+
+    // ----- helpers -------------------------------------------------------
+
+    private OrderStatus parseStatus(String status) {
+        try {
+            return OrderStatus.valueOf(status.trim().toUpperCase());
+        } catch (IllegalArgumentException | NullPointerException ex) {
+            throw new BadRequestException("Unknown order status: " + status);
+        }
+    }
+
+    private User resolveCaller(String email) {
+        return userRepository.findByEmailIgnoreCase(email)
+                .orElseThrow(() -> new ResourceNotFoundException("Authenticated user not found"));
+    }
+
+    /** A user may view an order if they own it, serve it (merchant), or are an admin. */
+    private void assertCanView(Order order, User caller) {
+        boolean isOwner = order.getUser().getUserId().equals(caller.getUserId());
+        boolean isServingMerchant = isServingMerchant(order, caller);
+        boolean isAdmin = caller.getRole() == UserRole.ADMIN;
+        if (!(isOwner || isServingMerchant || isAdmin)) {
+            throw new ForbiddenException("You are not allowed to access this order");
+        }
+    }
+
+    /** Only the serving merchant or an admin may change an order's status. */
+    private void assertCanManage(Order order, User caller) {
+        if (!(isServingMerchant(order, caller) || caller.getRole() == UserRole.ADMIN)) {
+            throw new ForbiddenException("You are not allowed to manage this order");
+        }
+    }
+
+    private boolean isServingMerchant(Order order, User caller) {
+        return caller.getRole() == UserRole.MERCHANT
+                && order.getMerchant().getUser().getUserId().equals(caller.getUserId());
+    }
+
+    private void recordEvent(Order order, OrderStatus from, OrderStatus to,
+                             String changedBy, String reason) {
+        orderEventRepository.save(OrderEvent.builder()
+                .order(order)
+                .fromStatus(from)
+                .toStatus(to)
+                .changedBy(changedBy)
+                .reason(reason)
+                .build());
     }
 
     private OrderResponseDTO toResponseDTO(Order order) {

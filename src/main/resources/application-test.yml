@@ -1,0 +1,39 @@
+# ===================================================================
+# OnTheWay — TEST profile (hermetic, no external services)
+# H2 in-memory in MySQL-compatibility mode runs the REAL Flyway
+# migrations, so both the migrations and the JPA mappings are verified.
+# ===================================================================
+spring:
+  datasource:
+    url: jdbc:h2:mem:ontheway;MODE=MySQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password: ""
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: false
+    properties:
+      hibernate.format_sql: false
+    database-platform: org.hibernate.dialect.H2Dialect
+  flyway:
+    enabled: true
+    # H2 in MySQL mode; Flyway treats it as a generic database.
+    baseline-on-migrate: true
+
+jwt:
+  secret: test-only-secret-0123456789abcdef0123456789abcdef
+  accessTokenExpirationMs: 900000
+  refreshTokenExpirationMs: 1209600000
+
+ontheway:
+  cors:
+    allowed-origins: http://localhost:5173
+  payment:
+    provider: mock
+  route:
+    provider: mock
+
+logging:
+  level:
+    com.ontheway: INFO

@@ -6,6 +6,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.*;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -23,11 +24,12 @@ public class MenuItemController {
     @PreAuthorize("hasRole('MERCHANT')")
     @PostMapping("/{merchantId}")
     public ResponseEntity<MenuItemResponseDTO> addMenuItem(
+            Authentication auth,
             @PathVariable("merchantId") Long merchantId,
             @Valid @RequestBody MenuItemCreateDTO dto) {
 
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(menuItemService.addMenuItem(merchantId, dto));
+                .body(menuItemService.addMenuItem(merchantId, dto, auth.getName()));
     }
 
     /**
@@ -36,10 +38,11 @@ public class MenuItemController {
     @PreAuthorize("hasRole('MERCHANT')")
     @PutMapping("/{id}")
     public ResponseEntity<MenuItemResponseDTO> updateMenuItem(
+            Authentication auth,
             @PathVariable("id") Long id,
             @Valid @RequestBody MenuItemUpdateDTO dto) {
 
-        return ResponseEntity.ok(menuItemService.updateMenuItem(id, dto));
+        return ResponseEntity.ok(menuItemService.updateMenuItem(id, dto, auth.getName()));
     }
 
     /**
@@ -47,8 +50,8 @@ public class MenuItemController {
      */
     @PreAuthorize("hasRole('MERCHANT')")
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> deleteMenuItem(@PathVariable("id") Long id) {
-        menuItemService.deleteMenuItem(id);
+    public ResponseEntity<?> deleteMenuItem(Authentication auth, @PathVariable("id") Long id) {
+        menuItemService.deleteMenuItem(id, auth.getName());
         return ResponseEntity.noContent().build();
     }
 

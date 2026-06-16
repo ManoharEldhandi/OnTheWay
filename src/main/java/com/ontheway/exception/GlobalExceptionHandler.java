@@ -3,6 +3,7 @@ package com.ontheway.exception;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.*;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.BindException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.*;
@@ -26,10 +27,30 @@ public class GlobalExceptionHandler {
         return buildErrorResponse(ex, HttpStatus.UNAUTHORIZED, req.getRequestURI());
     }
 
+    @ExceptionHandler(ForbiddenException.class)
+    public ResponseEntity<ErrorResponse> handleForbidden(ForbiddenException ex, HttpServletRequest req) {
+        log.warn("Forbidden: {}", ex.getMessage());
+        return buildErrorResponse(ex, HttpStatus.FORBIDDEN, req.getRequestURI());
+    }
+
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<ErrorResponse> handleAuthentication(AuthenticationException ex, HttpServletRequest req) {
+        // Generic message: never reveal whether the email exists or the password was wrong.
+        log.warn("Authentication failed: {}", ex.getMessage());
+        return buildErrorResponse(new UnauthorizedException("Invalid email or password"),
+                HttpStatus.UNAUTHORIZED, req.getRequestURI());
+    }
+
     @ExceptionHandler(BadRequestException.class)
     public ResponseEntity<ErrorResponse> handleBadRequest(BadRequestException ex, HttpServletRequest req) {
         log.warn("Bad request: {}", ex.getMessage());
         return buildErrorResponse(ex, HttpStatus.BAD_REQUEST, req.getRequestURI());
+    }
+
+    @ExceptionHandler(ConflictException.class)
+    public ResponseEntity<ErrorResponse> handleConflict(ConflictException ex, HttpServletRequest req) {
+        log.warn("Conflict: {}", ex.getMessage());
+        return buildErrorResponse(ex, HttpStatus.CONFLICT, req.getRequestURI());
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

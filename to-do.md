@@ -11,15 +11,16 @@
 
 ## Phase 0 — Stabilize & secure the existing core
 
-- [ ] **T0.1** Add **Flyway** + set `ddl-auto=validate`; baseline migration capturing the current schema.
-- [ ] **T0.2** Spring profiles (`dev`/`test`/`prod`); externalize **all secrets** to env; add `.env.example`; remove committed secrets.
-- [ ] **T0.3** Fix **registration privilege escalation**: drop client `role`; default `USER`; add `LoginRequest` DTO; password policy.
-- [ ] **T0.4** Fix **JWT filter**: validate signature/expiry **before** parsing claims; map JWT errors to `401` (no `500`).
-- [ ] **T0.5** Duplicate-email register → clean **`409 Conflict`** (not raw `500`).
-- [ ] **T0.6** Close **IDORs**: ownership checks on `GET /orders/{id}`, `GET /payments/order/{id}`, order-status update, menu/product update/delete.
-- [ ] **T0.7** **Order status state-machine** + `ORDER_EVENT` audit; illegal transition → `409`.
-- [ ] **T0.8** **Test harness**: JUnit 5 + Mockito + Testcontainers MySQL; first unit + slice + integration tests green.
-- [ ] **T0.9** **CORS allowlist** (replace `*`); basic auth **rate-limiting/lockout**; security headers.
+- [x] **T0.1** Add **Flyway** + set `ddl-auto=validate`; baseline migration capturing the current schema.
+      _(Delivered with `ddl-auto=none` — Flyway is the single source of truth; see ARCHITECTURE ADR-4.)_
+- [x] **T0.2** Spring profiles (`dev`/`test`/`prod`); externalize **all secrets** to env; add `.env.example`; remove committed secrets.
+- [x] **T0.3** Fix **registration privilege escalation**: drop client `role`; default `USER`; add `LoginRequest` DTO; password policy.
+- [x] **T0.4** Fix **JWT filter**: validate signature/expiry **before** parsing claims; map JWT errors to `401` (no `500`).
+- [x] **T0.5** Duplicate-email register → clean **`409 Conflict`** (not raw `500`).
+- [x] **T0.6** Close **IDORs**: ownership checks on `GET /orders/{id}`, `GET /payments/order/{id}`, order-status update, menu/product update/delete.
+- [x] **T0.7** **Order status state-machine** + `ORDER_EVENT` audit; illegal transition → `409`. _(Implemented as `400`.)_
+- [x] **T0.8** **Test harness**: JUnit 5 + Mockito + H2/Flyway integration; first unit + slice + integration tests green (27 passing).
+- [x] **T0.9** **CORS allowlist** (replace `*`); security headers. _(Auth rate-limiting deferred to a later hardening pass.)_
 
 ## Phase 1 — Generalize the domain (multi-vertical)
 

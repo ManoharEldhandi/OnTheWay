@@ -3,7 +3,7 @@ package com.ontheway.service;
 import com.ontheway.dto.*;
 
 public interface PaymentService {
-    PaymentResponseDTO createPayment(PaymentCreateDTO dto);
-    PaymentResponseDTO getPaymentByOrderId(Long orderId);
+    PaymentResponseDTO createPayment(PaymentCreateDTO dto, String callerEmail);
+    PaymentResponseDTO getPaymentByOrderId(Long orderId, String callerEmail);
     void updatePaymentStatus(Long paymentId, String status);
 }

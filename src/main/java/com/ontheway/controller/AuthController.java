@@ -1,5 +1,6 @@
 package com.ontheway.controller;
 
+import com.ontheway.dto.LoginRequest;
 import com.ontheway.dto.UserCreateDTO;
 import com.ontheway.security.JwtTokenProvider;
 import com.ontheway.service.UserService;
@@ -21,11 +22,11 @@ public class AuthController {
 
     @PostMapping("/register")
     public ResponseEntity<?> register(@Valid @RequestBody UserCreateDTO dto) {
-        return ResponseEntity.ok(userService.registerUser(dto));
+        return ResponseEntity.status(HttpStatus.CREATED).body(userService.registerUser(dto));
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody UserCreateDTO dto) {
+    public ResponseEntity<?> login(@Valid @RequestBody LoginRequest dto) {
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(dto.getEmail(), dto.getPassword())
         );

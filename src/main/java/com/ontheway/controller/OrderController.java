@@ -33,8 +33,9 @@ public class OrderController {
 
     @PreAuthorize("hasAnyRole('USER', 'MERCHANT', 'ADMIN')")
     @GetMapping("/{orderId}")
-    public ResponseEntity<OrderResponseDTO> getOrder(@PathVariable("orderId") Long orderId) {
-        return ResponseEntity.ok(orderService.getOrderById(orderId));
+    public ResponseEntity<OrderResponseDTO> getOrder(Authentication auth,
+                                                     @PathVariable("orderId") Long orderId) {
+        return ResponseEntity.ok(orderService.getOrderById(orderId, auth.getName()));
     }
 
     @PreAuthorize("hasRole('USER')")
@@ -54,9 +55,10 @@ public class OrderController {
     @PreAuthorize("hasRole('MERCHANT')")
     @PutMapping("/{orderId}/status")
     public ResponseEntity<OrderResponseDTO> updateOrderStatus(
+            Authentication auth,
             @PathVariable("orderId") Long orderId,
             @RequestParam("status") String status) {
-        return ResponseEntity.ok(orderService.updateOrderStatus(orderId, status));
+        return ResponseEntity.ok(orderService.updateOrderStatus(orderId, status, auth.getName()));
     }
 
     private Long extractUserId(Authentication authentication) {

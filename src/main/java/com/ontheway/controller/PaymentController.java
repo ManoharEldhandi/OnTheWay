@@ -6,6 +6,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.*;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -20,9 +21,10 @@ public class PaymentController {
      */
     @PreAuthorize("hasRole('USER')")
     @PostMapping
-    public ResponseEntity<PaymentResponseDTO> createPayment(@Valid @RequestBody PaymentCreateDTO dto) {
+    public ResponseEntity<PaymentResponseDTO> createPayment(Authentication auth,
+                                                            @Valid @RequestBody PaymentCreateDTO dto) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(paymentService.createPayment(dto));
+                .body(paymentService.createPayment(dto, auth.getName()));
     }
 
     /**
@@ -30,8 +32,9 @@ public class PaymentController {
      */
     @PreAuthorize("hasAnyRole('USER', 'MERCHANT', 'ADMIN')")
     @GetMapping("/order/{orderId}")
-    public ResponseEntity<PaymentResponseDTO> getPaymentByOrder(@PathVariable("orderId") Long orderId) {
-        return ResponseEntity.ok(paymentService.getPaymentByOrderId(orderId));
+    public ResponseEntity<PaymentResponseDTO> getPaymentByOrder(Authentication auth,
+                                                                @PathVariable("orderId") Long orderId) {
+        return ResponseEntity.ok(paymentService.getPaymentByOrderId(orderId, auth.getName()));
     }
 
     /**

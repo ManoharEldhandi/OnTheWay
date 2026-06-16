@@ -1,8 +1,10 @@
 package com.ontheway.service.impl;
 
 import com.ontheway.dto.*;
+import com.ontheway.exception.ForbiddenException;
 import com.ontheway.exception.ResourceNotFoundException;
 import com.ontheway.model.*;
+import com.ontheway.model.enums.UserRole;
 import com.ontheway.repository.*;
 import com.ontheway.service.MenuItemService;
 import lombok.RequiredArgsConstructor;
@@ -17,12 +19,14 @@ import java.util.stream.Collectors;
 public class MenuItemServiceImpl implements MenuItemService {
     private final MerchantRepository merchantRepository;
     private final MenuItemRepository menuItemRepository;
+    private final UserRepository userRepository;
 
     @Transactional
     @Override
-    public MenuItemResponseDTO addMenuItem(Long merchantId, MenuItemCreateDTO dto) {
+    public MenuItemResponseDTO addMenuItem(Long merchantId, MenuItemCreateDTO dto, String callerEmail) {
         Merchant merchant = merchantRepository.findById(merchantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Merchant not found"));
+        assertOwnsMerchant(merchant, callerEmail);
         MenuItem item = MenuItem.builder()
                 .merchant(merchant)
                 .name(dto.getName())
@@ -36,9 +40,10 @@ public class MenuItemServiceImpl implements MenuItemService {
 
     @Transactional
     @Override
-    public MenuItemResponseDTO updateMenuItem(Long menuItemId, MenuItemUpdateDTO dto) {
+    public MenuItemResponseDTO updateMenuItem(Long menuItemId, MenuItemUpdateDTO dto, String callerEmail) {
         MenuItem item = menuItemRepository.findById(menuItemId)
                 .orElseThrow(() -> new ResourceNotFoundException("Menu item not found"));
+        assertOwnsMerchant(item.getMerchant(), callerEmail);
         item.setPrice(dto.getPrice());
         item.setAvailability(dto.getAvailability());
         menuItemRepository.save(item);
@@ -47,11 +52,11 @@ public class MenuItemServiceImpl implements MenuItemService {
 
     @Transactional
     @Override
-    public void deleteMenuItem(Long menuItemId) {
-        if (!menuItemRepository.existsById(menuItemId)) {
-            throw new ResourceNotFoundException("Menu item not found");
-        }
-        menuItemRepository.deleteById(menuItemId);
+    public void deleteMenuItem(Long menuItemId, String callerEmail) {
+        MenuItem item = menuItemRepository.findById(menuItemId)
+                .orElseThrow(() -> new ResourceNotFoundException("Menu item not found"));
+        assertOwnsMerchant(item.getMerchant(), callerEmail);
+        menuItemRepository.delete(item);
     }
 
     @Override
@@ -65,6 +70,17 @@ public class MenuItemServiceImpl implements MenuItemService {
     public List<MenuItemResponseDTO> getMenuItemsByMerchant(Long merchantId) {
         return menuItemRepository.findByMerchantMerchantId(merchantId)
                 .stream().map(this::toResponseDTO).collect(Collectors.toList());
+    }
+
+    /** A merchant may only manage menu items belonging to their own store; admins may manage any. */
+    private void assertOwnsMerchant(Merchant merchant, String callerEmail) {
+        User caller = userRepository.findByEmailIgnoreCase(callerEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("Authenticated user not found"));
+        boolean isOwner = merchant.getUser().getUserId().equals(caller.getUserId());
+        boolean isAdmin = caller.getRole() == UserRole.ADMIN;
+        if (!(isOwner || isAdmin)) {
+            throw new ForbiddenException("You are not allowed to manage this merchant's menu");
+        }
     }
 
     private MenuItemResponseDTO toResponseDTO(MenuItem item) {
