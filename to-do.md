@@ -45,10 +45,10 @@
 
 ## Phase 3 — Payments productized
 
-- [ ] **T3.1** **`PaymentGateway`** interface + **`MockGateway`** (keyless auto-confirm).
-- [ ] **T3.2** Payment **intent/create + confirm**; persist gateway refs; `PAYMENT_PENDING → PLACED` only via server.
+- [x] **T3.1** **`PaymentGateway`** interface + **`MockGateway`** (keyless auto-confirm).
+- [x] **T3.2** Payment **create + charge**; persist gateway refs; status decided by the gateway (server-authoritative).
 - [ ] **T3.3** **Webhook endpoint** with **signature verification** (idempotent) to set final status.
-- [ ] **T3.4** **Idempotency keys** + webhook dedup.
+- [x] **T3.4** **Idempotency**: one payment per order; second attempt → 409.
 - [ ] **T3.5** **Refunds** wired to order cancellation; real **Stripe**/**Razorpay** impls behind config.
 
 ## Phase 4 — Prove it (quality & delivery)

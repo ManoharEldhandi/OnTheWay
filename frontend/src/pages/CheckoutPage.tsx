@@ -46,6 +46,12 @@ export function CheckoutPage() {
         paymentMethod: 'CARD',
         items: cart.lines.map((l) => ({ menuItemId: l.item.menuItemId, quantity: l.quantity })),
       });
+      // Pay for the order through the gateway (mock by default).
+      try {
+        await api.post('/api/payments', { orderId: order.orderId, paymentMethod: 'CARD' });
+      } catch {
+        // Payment failure shouldn't lose the order; the order page shows payment status.
+      }
       cart.clear();
       navigate(`/orders/${order.orderId}`);
     } catch (err) {

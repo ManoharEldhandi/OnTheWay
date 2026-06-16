@@ -29,6 +29,12 @@ public class PaymentResponseDTO {
     @JsonProperty("amount")
     private Double amount;
 
+    @JsonProperty("gateway")
+    private String gateway;
+
+    @JsonProperty("gatewayReference")
+    private String gatewayReference;
+
     @JsonProperty("paymentTime")
     private LocalDateTime paymentTime;
 }

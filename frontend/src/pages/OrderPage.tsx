@@ -3,17 +3,30 @@ import { useParams } from 'react-router-dom';
 import { api, ApiError } from '../api/client';
 import type { OrderResponse, OrderStatus } from '../types';
 
+interface PaymentInfo {
+  paymentStatus: string;
+  gateway: string | null;
+  amount: number;
+}
+
 const STEPS: OrderStatus[] = ['PLACED', 'PREPARING', 'READY', 'PICKED'];
 
 export function OrderPage() {
   const { orderId } = useParams();
   const [order, setOrder] = useState<OrderResponse | null>(null);
+  const [payment, setPayment] = useState<PaymentInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function load() {
     try {
       const data = await api.get<OrderResponse>(`/api/orders/${orderId}`);
       setOrder(data);
+      try {
+        const pay = await api.get<PaymentInfo>(`/api/payments/order/${orderId}`);
+        setPayment(pay);
+      } catch {
+        setPayment(null);
+      }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Failed to load order');
     }
@@ -39,6 +52,18 @@ export function OrderPage() {
         <h1 className="title">Order #{order.orderId}</h1>
         <span className={`status ${order.status}`}>{order.status}</span>
       </div>
+
+      {payment && (
+        <div className="card spread">
+          <span className="muted small">Payment</span>
+          <span>
+            <span className={`badge ${payment.paymentStatus === 'COMPLETED' ? 'green' : 'warn'}`}>
+              {payment.paymentStatus}
+            </span>
+            {payment.gateway && <span className="muted small"> · via {payment.gateway}</span>}
+          </span>
+        </div>
+      )}
 
       <div className="card col">
         <div className="muted small">Pickup time</div>

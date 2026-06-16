@@ -34,6 +34,14 @@ public class Payment {
     @Column(nullable = false)
     private Double amount;
 
+    /** Provider that processed this payment (e.g. mock, stripe, razorpay). */
+    @Column(length = 20)
+    private String gateway;
+
+    /** Reference/intent id returned by the payment gateway. */
+    @Column(length = 100)
+    private String gatewayReference;
+
     @Column(nullable = false)
     private LocalDateTime paymentTime;
 

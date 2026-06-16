@@ -1,11 +1,14 @@
 package com.ontheway.service.impl;
 
 import com.ontheway.dto.*;
+import com.ontheway.exception.ConflictException;
 import com.ontheway.exception.ForbiddenException;
 import com.ontheway.exception.ResourceNotFoundException;
 import com.ontheway.model.*;
 import com.ontheway.model.enums.PaymentStatus;
 import com.ontheway.model.enums.UserRole;
+import com.ontheway.payment.ChargeResult;
+import com.ontheway.payment.PaymentGateway;
 import com.ontheway.repository.*;
 import com.ontheway.service.PaymentService;
 
@@ -21,6 +24,7 @@ public class PaymentServiceImpl implements PaymentService {
     private final PaymentRepository paymentRepository;
     private final OrderRepository orderRepository;
     private final UserRepository userRepository;
+    private final PaymentGateway paymentGateway;
 
     @Transactional
     @Override
@@ -28,11 +32,25 @@ public class PaymentServiceImpl implements PaymentService {
         Order order = orderRepository.findById(dto.getOrderId())
                 .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
         assertOwnsOrder(order, callerEmail);
+
+        // Idempotency: an order has at most one payment.
+        if (paymentRepository.findByOrderOrderId(order.getOrderId()).isPresent()) {
+            throw new ConflictException("This order has already been paid");
+        }
+
+        // Charge through the configured gateway; the gateway decides the outcome,
+        // never the client.
+        String idempotencyKey = "order-" + order.getOrderId();
+        ChargeResult result = paymentGateway.charge(
+                order.getOrderId(), order.getTotalAmount(), dto.getPaymentMethod(), idempotencyKey);
+
         Payment payment = Payment.builder()
                 .order(order)
                 .paymentMethod(dto.getPaymentMethod())
                 .amount(order.getTotalAmount())
-                .paymentStatus(PaymentStatus.PENDING)
+                .paymentStatus(result.success() ? PaymentStatus.COMPLETED : PaymentStatus.FAILED)
+                .gateway(result.gateway())
+                .gatewayReference(result.reference())
                 .paymentTime(LocalDateTime.now())
                 .build();
         paymentRepository.save(payment);
@@ -91,6 +109,8 @@ public class PaymentServiceImpl implements PaymentService {
                 .paymentStatus(payment.getPaymentStatus())
                 .paymentMethod(payment.getPaymentMethod())
                 .amount(payment.getAmount())
+                .gateway(payment.getGateway())
+                .gatewayReference(payment.getGatewayReference())
                 .paymentTime(payment.getPaymentTime())
                 .build();
     }
