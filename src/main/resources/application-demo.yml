@@ -1,0 +1,35 @@
+# ===================================================================
+# OnTheWay — DEMO profile (zero external setup)
+# Runs entirely on an in-memory H2 (MySQL mode) with the real Flyway
+# migrations and seeded demo data. Ideal for evaluating the product and
+# for frontend development. Data resets on restart.
+#
+# Run:  mvn -s custom-m2/settings.xml spring-boot:run -Dspring-boot.run.profiles=demo
+# ===================================================================
+spring:
+  datasource:
+    url: jdbc:h2:mem:ontheway-demo;MODE=MySQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password: ""
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: false
+    database-platform: org.hibernate.dialect.H2Dialect
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+
+jwt:
+  secret: demo-only-secret-0123456789abcdef0123456789abcdef
+
+ontheway:
+  cors:
+    allowed-origins: http://localhost:5173,http://localhost:3000
+  seed:
+    enabled: true
+
+logging:
+  level:
+    com.ontheway: INFO

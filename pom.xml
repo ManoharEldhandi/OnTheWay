@@ -103,11 +103,11 @@
             <artifactId>flyway-mysql</artifactId>
         </dependency>
 
-        <!-- H2 (in-memory DB for tests, MySQL compatibility mode) -->
+        <!-- H2 (in-memory DB) — used by the hermetic test suite and the keyless `demo` profile. -->
         <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
-            <scope>test</scope>
+            <scope>runtime</scope>
         </dependency>
 
         <!-- MapStruct for DTO mapping -->
@@ -204,6 +204,13 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <version>${spring.boot.version}</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
