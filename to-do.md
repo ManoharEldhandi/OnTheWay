@@ -7,6 +7,12 @@
 >
 > Status keys: `[ ]` not started · `[~]` in progress · `[x]` done (tested + documented).
 
+> **Progress snapshot:** Phases 0 (stabilize+secure), 1 (geo enabler), 2 (ETA engine,
+> discovery, auto-advance scheduler), 3 (payments via gateway), and 5 (web frontend) are
+> delivered, tested (47 backend tests, all green), and documented. Phase 4 delivery
+> (Docker, CI) is in place. The product is **demoable end-to-end** (zero-setup `demo`
+> profile + React app). Remaining items below are enhancements, not blockers.
+
 ---
 
 ## Phase 0 — Stabilize & secure the existing core
