@@ -56,16 +56,17 @@
 - [ ] **T4.1** **Dockerfile** (multi-stage) + **docker-compose** (app + MySQL); one-command up.
 - [ ] **T4.2** **CI** (GitHub Actions): build → test → image; coverage gate.
 - [ ] **T4.3** **Observability**: Actuator health/readiness, Micrometer metrics, structured logs + correlation id.
+      _(Actuator health/info/metrics enabled; structured logs + correlation id pending.)_
 - [ ] **T4.4** Regression pass across all modules; performance sanity on discovery/ETA.
 
 ## Phase 5 — Show it (frontend, end-to-end)
 
-- [ ] **T5.1** **Frontend scaffold**: React + TS + Vite, router, TanStack Query, API client, auth.
-- [ ] **T5.2** **Customer flow**: discovery on map → store → menu → cart → checkout.
-- [ ] **T5.3** **Hero screen**: live route + store pin + **ETA-sync countdown** (realtime).
-- [ ] **T5.4** **Merchant console**: incoming orders, "start now" prompts, mark ready/picked.
+- [x] **T5.1** **Frontend scaffold**: React + TS + Vite, router, API client, auth.
+- [x] **T5.2** **Customer flow**: discovery on map → store → menu → cart → checkout.
+- [x] **T5.3** **Hero screen**: live route + store pin + **ETA-sync countdown** (SVG map; polling).
+- [x] **T5.4** **Merchant console**: incoming orders, advance status (state-machine), cancel.
 - [ ] **T5.5** **Admin console**: users, stores, categories, oversight.
-- [ ] **T5.6** **Seed data** + guided **demo script**; responsive polish.
+- [x] **T5.6** **Seed data** + one-click demo logins. _(Guided demo script in docs.)_
 
 ## Phase 6 — Document & demo assets
 

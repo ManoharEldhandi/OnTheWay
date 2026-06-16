@@ -9,6 +9,7 @@ import org.springframework.validation.BindException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.time.LocalDateTime;
 
@@ -20,6 +21,14 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleNotFound(ResourceNotFoundException ex, HttpServletRequest req) {
         log.warn("Resource not found: {}", ex.getMessage());
         return buildErrorResponse(ex, HttpStatus.NOT_FOUND, req.getRequestURI());
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ErrorResponse> handleNoResource(NoResourceFoundException ex, HttpServletRequest req) {
+        // An unmapped URL: return a clean 404 instead of a generic 500.
+        log.warn("No handler for path: {}", req.getRequestURI());
+        return buildErrorResponse(new ResourceNotFoundException("Resource not found"),
+                HttpStatus.NOT_FOUND, req.getRequestURI());
     }
 
     @ExceptionHandler(UnauthorizedException.class)
