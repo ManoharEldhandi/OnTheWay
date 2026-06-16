@@ -91,3 +91,10 @@ ontheway.eta.default-prep-mins=15
 - Live ETA recompute as the customer moves.
 - On-route corridor discovery.
 - Real-time push (WebSocket).
+
+## Auto-advance scheduler (the ETA promise, self-driving) — DONE
+`OrderProgressionScheduler` runs every 30 s and moves every `PLACED` order whose computed
+`prepStartAt` has arrived into `PREPARING` — so the store starts preparing at exactly the
+right moment, automatically; an audit event records `system:scheduler` as the actor.
+`prepStartAt` is persisted at placement (migration `V5`); the core scan `advanceDueOrders()`
+takes an injected `Clock` for deterministic tests (`OrderProgressionSchedulerTest`).

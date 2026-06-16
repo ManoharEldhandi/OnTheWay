@@ -36,7 +36,7 @@
 
 - [x] **T2.1** **`RouteProvider`** interface + **`MockRouteProvider`** (Haversine ÷ avg speed, clock-injected).
 - [x] **T2.2** **ETA engine**: compute travel time, `readyAt`, `prepStartAt = arrival − prep − buffer`; persist on order.
-- [ ] **T2.3** **Scheduler** flips `PLACED → PREPARING` at `prepStartAt` and emits merchant "start now".
+- [x] **T2.3** **Scheduler** flips `PLACED → PREPARING` at `prepStartAt` (auto-advance, audited).
 - [ ] **T2.4** **Location-driven recompute**: consume customer location updates → recompute ETA.
 - [x] **T2.5** **Discovery API**: nearby (radius), by category, ordered nearest-first.
       _(open-now + text search deferred.)_

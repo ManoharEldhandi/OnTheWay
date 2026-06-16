@@ -34,6 +34,10 @@ public class Order {
     @Column(nullable = false)
     private LocalDateTime pickupTime;
 
+    /** When the merchant should start preparing (set by the ETA engine). Drives auto-advance. */
+    @Column
+    private LocalDateTime prepStartAt;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private OrderStatus status;

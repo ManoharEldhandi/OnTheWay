@@ -30,6 +30,9 @@ public class OrderResponseDTO {
     @JsonProperty("pickupTime")
     private LocalDateTime pickupTime;
 
+    @JsonProperty("prepStartAt")
+    private LocalDateTime prepStartAt;
+
     @JsonProperty("etaSegment")
     private String etaSegment;
 

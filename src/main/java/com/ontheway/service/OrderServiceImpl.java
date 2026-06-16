@@ -49,6 +49,7 @@ public class OrderServiceImpl implements OrderService {
         // has a location, compute when the order should be ready (on arrival) and persist
         // a human-readable ETA summary. Otherwise fall back to a client-supplied pickup time.
         LocalDateTime pickupTime = dto.getPickupTime();
+        LocalDateTime prepStartAt = null;
         String etaSegment = null;
         boolean canSyncEta = dto.getLatitude() != null && dto.getLongitude() != null
                 && merchant.getLatitude() != null && merchant.getLongitude() != null;
@@ -56,6 +57,7 @@ public class OrderServiceImpl implements OrderService {
             EtaCalculation eta = etaService.estimate(
                     new GeoPoint(dto.getLatitude(), dto.getLongitude()), merchant);
             pickupTime = eta.readyAt();
+            prepStartAt = eta.prepStartAt();
             int readyInMins = Math.max(0,
                     (int) Duration.between(LocalDateTime.now(), eta.readyAt()).toMinutes());
             etaSegment = String.format(
@@ -72,6 +74,7 @@ public class OrderServiceImpl implements OrderService {
                 .merchant(merchant)
                 .orderTime(LocalDateTime.now())
                 .pickupTime(pickupTime)
+                .prepStartAt(prepStartAt)
                 .status(OrderStatus.PLACED)
                 .totalAmount(0.0) // Set after items processed
                 .etaSegment(etaSegment)
@@ -221,6 +224,7 @@ public class OrderServiceImpl implements OrderService {
                 .merchantId(order.getMerchant().getMerchantId())
                 .orderTime(order.getOrderTime())
                 .pickupTime(order.getPickupTime())
+                .prepStartAt(order.getPrepStartAt())
                 .etaSegment(order.getEtaSegment())
                 .status(order.getStatus())
                 .totalAmount(order.getTotalAmount())
