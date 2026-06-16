@@ -13,9 +13,13 @@ import java.time.Clock;
 @EnableScheduling
 public class AppConfig {
 
-    /** System UTC clock. Injected where deterministic time is needed (e.g. the ETA engine). */
+    /**
+     * Clock used where deterministic/consistent time is needed (e.g. the ETA engine and
+     * the auto-advance scheduler). Uses the system default zone so it agrees with the
+     * {@code LocalDateTime.now()} timestamps used elsewhere (order/pickup times).
+     */
     @Bean
     public Clock clock() {
-        return Clock.systemUTC();
+        return Clock.systemDefaultZone();
     }
 }
