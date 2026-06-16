@@ -4,6 +4,9 @@ import com.ontheway.dto.*;
 import com.ontheway.exception.BadRequestException;
 import com.ontheway.exception.ForbiddenException;
 import com.ontheway.exception.ResourceNotFoundException;
+import com.ontheway.fulfillment.EtaCalculation;
+import com.ontheway.fulfillment.EtaService;
+import com.ontheway.fulfillment.GeoPoint;
 import com.ontheway.model.*;
 import com.ontheway.model.enums.OrderStatus;
 import com.ontheway.model.enums.UserRole;
@@ -14,6 +17,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -27,6 +31,7 @@ public class OrderServiceImpl implements OrderService {
     private final MenuItemRepository menuItemRepository;
     private final OrderItemRepository orderItemRepository;
     private final OrderEventRepository orderEventRepository;
+    private final EtaService etaService;
 
     @Transactional
     @Override
@@ -40,14 +45,36 @@ public class OrderServiceImpl implements OrderService {
             throw new BadRequestException("An order must contain at least one item");
         }
 
+        // ETA synchronization: if the customer shared their live location and the store
+        // has a location, compute when the order should be ready (on arrival) and persist
+        // a human-readable ETA summary. Otherwise fall back to a client-supplied pickup time.
+        LocalDateTime pickupTime = dto.getPickupTime();
+        String etaSegment = null;
+        boolean canSyncEta = dto.getLatitude() != null && dto.getLongitude() != null
+                && merchant.getLatitude() != null && merchant.getLongitude() != null;
+        if (canSyncEta) {
+            EtaCalculation eta = etaService.estimate(
+                    new GeoPoint(dto.getLatitude(), dto.getLongitude()), merchant);
+            pickupTime = eta.readyAt();
+            int readyInMins = Math.max(0,
+                    (int) Duration.between(LocalDateTime.now(), eta.readyAt()).toMinutes());
+            etaSegment = String.format(
+                    "travel %d min, prep %d min (+%d buffer); ready ~%d min after ordering",
+                    eta.travelMins(), eta.prepTimeMins(), eta.bufferMins(), readyInMins);
+        }
+        if (pickupTime == null) {
+            throw new BadRequestException(
+                    "Either pickupTime or your current location (latitude/longitude) is required");
+        }
+
         Order order = Order.builder()
                 .user(user)
                 .merchant(merchant)
                 .orderTime(LocalDateTime.now())
-                .pickupTime(dto.getPickupTime())
+                .pickupTime(pickupTime)
                 .status(OrderStatus.PLACED)
                 .totalAmount(0.0) // Set after items processed
-                .etaSegment(null)
+                .etaSegment(etaSegment)
                 .build();
 
         List<OrderItem> items = new ArrayList<>();
@@ -194,6 +221,7 @@ public class OrderServiceImpl implements OrderService {
                 .merchantId(order.getMerchant().getMerchantId())
                 .orderTime(order.getOrderTime())
                 .pickupTime(order.getPickupTime())
+                .etaSegment(order.getEtaSegment())
                 .status(order.getStatus())
                 .totalAmount(order.getTotalAmount())
                 .items(items)

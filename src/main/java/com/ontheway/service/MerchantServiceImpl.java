@@ -27,6 +27,9 @@ public class MerchantServiceImpl implements MerchantService {
                 .storeName(dto.getStoreName())
                 .storeType(dto.getStoreType())
                 .address(dto.getAddress())
+                .latitude(dto.getLatitude())
+                .longitude(dto.getLongitude())
+                .prepTimeMins(dto.getPrepTimeMins())
                 .etaBufferMins(dto.getEtaBufferMins())
                 .build();
 
@@ -49,6 +52,9 @@ public class MerchantServiceImpl implements MerchantService {
 
         merchant.setStoreName(dto.getStoreName());
         merchant.setAddress(dto.getAddress());
+        merchant.setLatitude(dto.getLatitude());
+        merchant.setLongitude(dto.getLongitude());
+        merchant.setPrepTimeMins(dto.getPrepTimeMins());
         merchant.setEtaBufferMins(dto.getEtaBufferMins());
 
         merchantRepository.save(merchant);
@@ -71,6 +77,9 @@ public class MerchantServiceImpl implements MerchantService {
                 .storeName(merchant.getStoreName())
                 .storeType(merchant.getStoreType())
                 .address(merchant.getAddress())
+                .latitude(merchant.getLatitude())
+                .longitude(merchant.getLongitude())
+                .prepTimeMins(merchant.getPrepTimeMins())
                 .etaBufferMins(merchant.getEtaBufferMins())
                 .createdAt(merchant.getCreatedAt())
                 .updatedAt(merchant.getUpdatedAt())

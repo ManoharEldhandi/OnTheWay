@@ -1,15 +1,18 @@
 package com.ontheway.repository;
 
 import com.ontheway.model.Merchant;
+import com.ontheway.model.enums.StoreType;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface MerchantRepository extends JpaRepository<Merchant, Long> {
-    // ✅ Add this method if it doesn't exist
     Optional<Merchant> findByUser_UserId(Long userId);
 
-    // ✅ Alternative query method (if the above doesn't work with your entity structure)
-    // @Query("SELECT m FROM Merchant m WHERE m.user.userId = :userId")
-    // Optional<Merchant> findByUserId(@Param("userId") Long userId);
+    /** Stores that have a location set — candidates for geo discovery. */
+    List<Merchant> findByLatitudeIsNotNullAndLongitudeIsNotNull();
+
+    /** Located stores of a given vertical/category. */
+    List<Merchant> findByStoreTypeAndLatitudeIsNotNullAndLongitudeIsNotNull(StoreType storeType);
 }

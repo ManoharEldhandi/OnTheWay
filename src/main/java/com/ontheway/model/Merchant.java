@@ -35,6 +35,17 @@ public class Merchant {
     @Column(nullable = false, length = 300)
     private String address;
 
+    /** Store location (used by the ETA engine and discovery). Nullable for legacy rows. */
+    @Column
+    private Double latitude;
+
+    @Column
+    private Double longitude;
+
+    /** Base preparation time in minutes for a typical order at this store. */
+    @Column
+    private Integer prepTimeMins;
+
     @Column(nullable = false)
     private Integer etaBufferMins;
 

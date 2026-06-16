@@ -21,9 +21,17 @@ public class OrderCreateDTO {
     @NotNull(message = "Merchant ID is required")
     private Long merchantId;
 
+    // Optional: if the customer's live location is provided (and the store has a
+    // location), pickup time is ETA-synchronized and this field is ignored.
     @JsonProperty("pickupTime")
-    @NotNull(message = "Pickup time is required")
     private LocalDateTime pickupTime;
+
+    // Optional live location for ETA synchronization.
+    @JsonProperty("latitude")
+    private Double latitude;
+
+    @JsonProperty("longitude")
+    private Double longitude;
 
     @JsonProperty("items")
     @NotEmpty(message = "At least one item is required")

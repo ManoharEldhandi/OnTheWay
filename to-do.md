@@ -25,7 +25,8 @@
 ## Phase 1 — Generalize the domain (multi-vertical)
 
 - [ ] **T1.1** Introduce **`Category`** taxonomy; migrate `StoreType` enum → category data.
-- [ ] **T1.2** Introduce **`Store`** with **geo** (lat/lng), open-hours, default prep time; link to Merchant.
+- [x] **T1.2** Introduce **`Store`** with **geo** (lat/lng), open-hours, default prep time; link to Merchant.
+      _(Delivered as geo + `prepTimeMins` on `Merchant` (migration V3); a separate Store entity is deferred — see ARCHITECTURE note.)_
 - [ ] **T1.3** Rename/generalize **`MenuItem` → `Product`** (backward-compatible migration); keep food semantics as a category.
 - [ ] **T1.4** Money to **`BigDecimal`** minor-units + currency across entities, DTOs, totals.
 - [ ] **T1.5** **Pagination/sorting/filtering** on all list endpoints.
@@ -33,11 +34,12 @@
 
 ## Phase 2 — The hero: ETA engine + discovery + realtime
 
-- [ ] **T2.1** **`RouteProvider`** interface + **`MockRouteProvider`** (Haversine ÷ avg speed, clock-injected).
-- [ ] **T2.2** **ETA engine**: compute travel time, `readyAt`, `prepStartAt = arrival − prep − buffer`; persist on order.
+- [x] **T2.1** **`RouteProvider`** interface + **`MockRouteProvider`** (Haversine ÷ avg speed, clock-injected).
+- [x] **T2.2** **ETA engine**: compute travel time, `readyAt`, `prepStartAt = arrival − prep − buffer`; persist on order.
 - [ ] **T2.3** **Scheduler** flips `PLACED → PREPARING` at `prepStartAt` and emits merchant "start now".
 - [ ] **T2.4** **Location-driven recompute**: consume customer location updates → recompute ETA.
-- [ ] **T2.5** **Discovery API**: nearby (radius), by category, open-now, text search — paginated/filterable.
+- [x] **T2.5** **Discovery API**: nearby (radius), by category, ordered nearest-first.
+      _(open-now + text search deferred.)_
 - [ ] **T2.6** **On-route discovery**: stores within a corridor of the route polyline.
 - [ ] **T2.7** **Realtime (STOMP/WebSocket)**: authenticated handshake; order + ETA streams to customer; inbound queue to merchant.
 

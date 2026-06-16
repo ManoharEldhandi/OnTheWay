@@ -29,6 +29,15 @@ public class MerchantResponseDTO {
     @JsonProperty("address")
     private String address;
 
+    @JsonProperty("latitude")
+    private Double latitude;
+
+    @JsonProperty("longitude")
+    private Double longitude;
+
+    @JsonProperty("prepTimeMins")
+    private Integer prepTimeMins;
+
     @JsonProperty("etaBufferMins")
     private Integer etaBufferMins;
 
