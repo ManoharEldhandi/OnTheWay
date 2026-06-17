@@ -46,8 +46,8 @@
 - [x] **T3.4** Customer live-tracking UI showing the moving ETA window.
 
 ## Phase 4 — Persistence, portability & scale
-- [ ] **T4.1** MySQL as the default durable store for real runs; verify migrations on MySQL.
-- [ ] **T4.2** One-command portable run via Docker compose (develop here, run there).
+- [x] **T4.1** MySQL as the default durable store for real runs; verify migrations on MySQL.
+- [x] **T4.2** One-command portable run via Docker compose (develop here, run there).
 - [x] **T4.3** Seed **100+ shops across many verticals** for a credible demo.
 
 ## Phase 5 — Real-time, payments & hardening (carried over)

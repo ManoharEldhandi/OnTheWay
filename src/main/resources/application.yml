@@ -45,6 +45,12 @@ ontheway:
       apisecret: ${RAZORPAY_API_SECRET:}
   route:
     provider: ${ROUTE_PROVIDER:mock}     # mock | google | mapbox | osrm
+  # Bootstrap the first administrator on a fresh durable DB (dev/prod). Nothing is created
+  # unless both an email and a password are supplied; the demo profile seeds its own admin.
+  bootstrap:
+    admin-email: ${ONTHEWAY_ADMIN_EMAIL:}
+    admin-password: ${ONTHEWAY_ADMIN_PASSWORD:}
+    admin-name: ${ONTHEWAY_ADMIN_NAME:Administrator}
 
 springdoc:
   api-docs:

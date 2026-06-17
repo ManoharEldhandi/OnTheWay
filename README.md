@@ -42,13 +42,23 @@ cd frontend && npm install && npm run dev      # http://localhost:5173
 ```
 
 Demo logins (password `password123`, one-click on the login screen):
-`alice@ontheway.app` (customer), `biryani@ontheway.app` (merchant), `admin@ontheway.app`.
+`alice@ontheway.app` (customer), `biryani@ontheway.app` (merchant — runs multiple shops),
+`admin@ontheway.app` (admin). The seed loads **115 shops / 507 items** across verticals,
+including pending and suspended shops so the admin console has something to moderate.
 
-### Option B — full stack with Docker (MySQL)
+### Option B — full stack with Docker (MySQL), one command
+
+Develop on one machine, run on any other with only Docker installed:
 
 ```bash
-docker compose up --build        # backend on :8080, MySQL on :3306 (dev profile)
+docker compose up --build
+# frontend  → http://localhost:5173   (nginx, proxies /api to the backend)
+# backend   → http://localhost:8080   (dev profile, MySQL)
+# MySQL     → localhost:3306          (persistent named volume)
 ```
+
+The backend applies Flyway migrations on startup and MySQL data survives restarts in a named
+volume, so the whole product is portable and durable across machines.
 
 API docs (Swagger UI): http://localhost:8080/swagger-ui.html ·
 Health: http://localhost:8080/actuator/health
@@ -59,18 +69,28 @@ For full setup, configuration, and a guided walkthrough, see [docs/USAGE.md](doc
 
 ## What works today
 
+- **Three real roles, three dashboards**: customers discover & order; **merchants** run their own
+  shops (add/edit/remove items, set price, mark out-of-stock, open more shops); **admins** moderate
+  the marketplace (approve/reject/suspend/delete shops, ban, view live metrics).
+- **Shop lifecycle**: a new shop is `PENDING` until an admin approves it; one owner can run many
+  shops; only `APPROVED` shops are publicly visible and orderable.
 - **Auth**: JWT (validate-before-parse), BCrypt, role-based + ownership-checked authorization.
-- **ETA engine**: `POST /api/eta/quote`; orders accept a live location and are ETA-synchronized;
-  a scheduler starts preparation automatically at the computed time.
-- **Discovery**: `GET /api/discovery/nearby` — radius + category, nearest-first, travel-time annotated.
+- **Powerful search**: `GET /api/discovery/search` across **item *and* shop names**, returning the
+  item, its price, the shop, and the distance — sortable by **price, distance, or relevance**, and
+  filterable by vertical. Plus `GET /api/discovery/nearby` (radius + category, nearest-first).
+- **Live, traffic-aware ETA**: the store starts preparing timed to your arrival; while en route the
+  customer streams location (`POST /api/orders/{id}/location`) and sees an Uber-style **arrival
+  window** (earliest–latest) that updates as they move and widens with traffic.
 - **Ordering**: server-authoritative validation, a real status **state machine**
   (`PLACED → PREPARING → READY → PICKED`, `→ CANCELLED`), and an immutable audit trail.
 - **Payments**: a gateway abstraction with a keyless mock provider; idempotent, ownership-checked.
-- **Catalog**: stores (with geo + prep time) and menu items across multiple verticals.
-- **Web app**: discovery on a map → menu → cart → ETA checkout → live order tracking, plus a
-  merchant console; a grey-and-silver, grid-based interface.
+- **Catalog**: stores (with geo + prep time) and menu items across **16 verticals** (restaurant,
+  pharmacy, grocery, café, hotel, electronics, …).
+- **Web app**: role-aware routing → vertical picker + search + map → menu → cart → ETA checkout →
+  live tracking; merchant & admin consoles; a grey-and-silver, grid-based interface.
 - **Engineering**: Flyway migrations, profiles (`dev`/`test`/`prod`/`demo`), externalized
-  secrets, a hermetic test suite (H2 + real migrations), a 1,000-user load test, Docker + CI.
+  secrets, a hermetic test suite (H2 + real migrations) **plus a real-MySQL migration test**
+  (Testcontainers), a 1,000-user load test, Docker + CI.
 
 ---
 
@@ -99,7 +119,7 @@ For full setup, configuration, and a guided walkthrough, see [docs/USAGE.md](doc
 │   └── config/             # CORS, Swagger, app beans, demo seeder
 ├── src/main/resources/
 │   ├── application*.yml     # profile configuration
-│   └── db/migration/        # Flyway V1..V5
+│   └── db/migration/        # Flyway V1..V6 (SQL) + V6 Java migration (shop lifecycle)
 ├── src/test/java/...        # unit, slice, integration, and load tests
 ├── frontend/                # React + TS + Vite web client
 ├── Dockerfile  docker-compose.yml  .github/workflows/ci.yml
@@ -130,6 +150,8 @@ For the 1,000-user load test, see [docs/STRESS_TESTING.md](docs/STRESS_TESTING.m
   [phase-0](docs/phase-0-stabilization-and-security.md),
   [phase-2 (ETA + discovery)](docs/phase-2-eta-and-discovery.md),
   [phase-3 (payments)](docs/phase-3-payments.md),
+  [live ETA & traffic window](docs/live-eta-tracking.md),
+  [persistence & portability](docs/persistence-and-portability.md),
   [phase-5 (frontend)](docs/phase-5-frontend.md).
 
 ---
