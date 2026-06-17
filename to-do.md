@@ -35,8 +35,8 @@
 
 ## Phase 2 — Vertical selection & powerful search
 - [x] **T2.1** Expand category taxonomy (10+ verticals).
-- [ ] **T2.2** `GET /api/discovery/search`: match shop **and** item names; return item · price · shop · distance.
-- [ ] **T2.3** Sorting by **distance**, **price**, **relevance**; filters (open-now, availability).
+- [x] **T2.2** `GET /api/discovery/search`: match shop **and** item names; return item · price · shop · distance.
+- [x] **T2.3** Sorting by **distance**, **price**, **relevance**; vertical filter. _(open-now filter deferred.)_
 - [ ] **T2.4** Customer UI: vertical picker + search bar + sort controls + results list.
 
 ## Phase 3 — Live ETA + traffic buffer

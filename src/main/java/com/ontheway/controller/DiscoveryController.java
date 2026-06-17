@@ -1,5 +1,6 @@
 package com.ontheway.controller;
 
+import com.ontheway.dto.SearchResultResponse;
 import com.ontheway.dto.StoreDiscoveryResponse;
 import com.ontheway.exception.BadRequestException;
 import com.ontheway.model.enums.StoreType;
@@ -12,7 +13,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 /**
- * Store discovery around the customer (the map view's data source).
+ * Store discovery and search around the customer (the customer dashboard's data source).
  */
 @RestController
 @RequestMapping("/api/discovery")
@@ -39,5 +40,26 @@ public class DiscoveryController {
             throw new BadRequestException("radiusKm must be between 0 and " + MAX_RADIUS_KM);
         }
         return ResponseEntity.ok(discoveryService.findNearby(lat, lng, radiusKm, category));
+    }
+
+    /**
+     * Search items across shops by item name or shop name. Each result carries the item, its
+     * price, the shop, and the distance. Example:
+     * {@code GET /api/discovery/search?lat=12.97&lng=77.59&radiusKm=10&q=biryani&sort=price}
+     */
+    @PreAuthorize("hasAnyRole('USER', 'MERCHANT', 'ADMIN')")
+    @GetMapping("/search")
+    public ResponseEntity<List<SearchResultResponse>> search(
+            @RequestParam("lat") double lat,
+            @RequestParam("lng") double lng,
+            @RequestParam(value = "radiusKm", defaultValue = "10") double radiusKm,
+            @RequestParam(value = "q", required = false) String query,
+            @RequestParam(value = "category", required = false) StoreType category,
+            @RequestParam(value = "sort", defaultValue = "relevance") String sort) {
+
+        if (radiusKm <= 0 || radiusKm > MAX_RADIUS_KM) {
+            throw new BadRequestException("radiusKm must be between 0 and " + MAX_RADIUS_KM);
+        }
+        return ResponseEntity.ok(discoveryService.search(lat, lng, radiusKm, query, category, sort));
     }
 }
