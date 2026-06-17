@@ -30,6 +30,7 @@ class OrderFlowIntegrationTest {
 
     @Autowired private MockMvc mockMvc;
     @Autowired private ObjectMapper objectMapper;
+    @Autowired private com.ontheway.repository.MerchantRepository merchantRepository;
 
     private String registerAndLogin(String email, UserRole role) throws Exception {
         UserCreateDTO reg = UserCreateDTO.builder()
@@ -52,6 +53,12 @@ class OrderFlowIntegrationTest {
         return "Bearer " + token;
     }
 
+    /** Applies for a shop as the given merchant and approves it, returning the shop id. */
+    private long applyApprove(String token, MerchantCreateDTO dto) throws Exception {
+        return com.ontheway.support.TestFixtures.applyAndApproveShop(
+                mockMvc, objectMapper, merchantRepository, bearer(token), dto);
+    }
+
     @Test
     void fullOrderLifecycle_withOwnershipAndStateMachine() throws Exception {
         // --- Merchant onboarding ---
@@ -59,11 +66,7 @@ class OrderFlowIntegrationTest {
         MerchantCreateDTO merchantDto = MerchantCreateDTO.builder()
                 .storeName("Flow Cafe").storeType(StoreType.CAFE)
                 .address("1 Test St").etaBufferMins(10).build();
-        String merchantBody = mockMvc.perform(post("/api/merchants")
-                        .header("Authorization", bearer(merchantToken))
-                        .contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(merchantDto)))
-                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
-        long merchantId = idFrom(merchantBody, "merchantId");
+        long merchantId = applyApprove(merchantToken, merchantDto);
 
         // --- Menu item ---
         MenuItemCreateDTO itemDto = MenuItemCreateDTO.builder()
@@ -121,11 +124,8 @@ class OrderFlowIntegrationTest {
     void placeOrder_withForeignMenuItem_isRejected() throws Exception {
         // Merchant A with an item
         String mAtoken = registerAndLogin("mA@x.com", UserRole.MERCHANT);
-        long mA = idFrom(mockMvc.perform(post("/api/merchants").header("Authorization", bearer(mAtoken))
-                .contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(
-                        MerchantCreateDTO.builder().storeName("A").storeType(StoreType.RESTAURANT)
-                                .address("A").etaBufferMins(5).build())))
-                .andReturn().getResponse().getContentAsString(), "merchantId");
+        long mA = applyApprove(mAtoken, MerchantCreateDTO.builder().storeName("A").storeType(StoreType.RESTAURANT)
+                .address("A").etaBufferMins(5).build());
         long itemA = idFrom(mockMvc.perform(post("/api/menu-items/" + mA).header("Authorization", bearer(mAtoken))
                 .contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(
                         MenuItemCreateDTO.builder().name("Pizza").price(9.0).availability(true).build())))
@@ -133,11 +133,8 @@ class OrderFlowIntegrationTest {
 
         // Merchant B (target merchant for the order)
         String mBtoken = registerAndLogin("mB@x.com", UserRole.MERCHANT);
-        long mB = idFrom(mockMvc.perform(post("/api/merchants").header("Authorization", bearer(mBtoken))
-                .contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(
-                        MerchantCreateDTO.builder().storeName("B").storeType(StoreType.RESTAURANT)
-                                .address("B").etaBufferMins(5).build())))
-                .andReturn().getResponse().getContentAsString(), "merchantId");
+        long mB = applyApprove(mBtoken, MerchantCreateDTO.builder().storeName("B").storeType(StoreType.RESTAURANT)
+                .address("B").etaBufferMins(5).build());
 
         // Customer tries to order merchant A's item from merchant B -> rejected
         String custToken = registerAndLogin("cross-cust@x.com", UserRole.USER);

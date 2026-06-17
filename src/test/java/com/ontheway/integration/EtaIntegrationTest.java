@@ -28,6 +28,7 @@ class EtaIntegrationTest {
 
     @Autowired private MockMvc mockMvc;
     @Autowired private ObjectMapper objectMapper;
+    @Autowired private com.ontheway.repository.MerchantRepository merchantRepository;
 
     private String registerAndLogin(String email, UserRole role) throws Exception {
         UserCreateDTO reg = UserCreateDTO.builder()
@@ -46,10 +47,8 @@ class EtaIntegrationTest {
         MerchantCreateDTO dto = MerchantCreateDTO.builder()
                 .storeName("Geo Store").storeType(StoreType.RESTAURANT).address("addr")
                 .latitude(lat).longitude(lng).prepTimeMins(prep).etaBufferMins(5).build();
-        String body = mockMvc.perform(post("/api/merchants").header("Authorization", token)
-                        .contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
-        return objectMapper.readTree(body).get("merchantId").asLong();
+        return com.ontheway.support.TestFixtures.applyAndApproveShop(
+                mockMvc, objectMapper, merchantRepository, token, dto);
     }
 
     @Test
@@ -74,7 +73,7 @@ class EtaIntegrationTest {
         String merchantToken = registerAndLogin("noloc-merch@x.com", UserRole.MERCHANT);
         MerchantCreateDTO dto = MerchantCreateDTO.builder()
                 .storeName("No Geo").storeType(StoreType.CAFE).address("addr").etaBufferMins(5).build();
-        String body = mockMvc.perform(post("/api/merchants").header("Authorization", merchantToken)
+        String body = mockMvc.perform(post("/api/merchant/shops").header("Authorization", merchantToken)
                         .contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
         long merchantId = objectMapper.readTree(body).get("merchantId").asLong();

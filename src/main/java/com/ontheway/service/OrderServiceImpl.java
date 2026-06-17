@@ -41,6 +41,11 @@ public class OrderServiceImpl implements OrderService {
         Merchant merchant = merchantRepository.findById(dto.getMerchantId())
                 .orElseThrow(() -> new ResourceNotFoundException("Merchant not found"));
 
+        // Orders may only be placed at an approved, active shop.
+        if (merchant.getStatus() != com.ontheway.model.enums.MerchantStatus.APPROVED) {
+            throw new BadRequestException("This shop is not currently accepting orders");
+        }
+
         if (dto.getItems() == null || dto.getItems().isEmpty()) {
             throw new BadRequestException("An order must contain at least one item");
         }
@@ -135,6 +140,13 @@ public class OrderServiceImpl implements OrderService {
     @Override
     public List<OrderResponseDTO> getOrdersByMerchant(Long merchantId) {
         return orderRepository.findByMerchantMerchantId(merchantId)
+                .stream().map(this::toResponseDTO).collect(Collectors.toList());
+    }
+
+    @Override
+    public List<OrderResponseDTO> getOrdersForOwner(String ownerEmail) {
+        User owner = resolveCaller(ownerEmail);
+        return orderRepository.findByMerchant_User_UserId(owner.getUserId())
                 .stream().map(this::toResponseDTO).collect(Collectors.toList());
     }
 

@@ -9,5 +9,9 @@ public interface OrderService {
     OrderResponseDTO getOrderById(Long orderId, String callerEmail);
     List<OrderResponseDTO> getOrdersByUser(Long userId);
     List<OrderResponseDTO> getOrdersByMerchant(Long merchantId);
+
+    /** All orders across every shop owned by the merchant identified by email. */
+    List<OrderResponseDTO> getOrdersForOwner(String ownerEmail);
+
     OrderResponseDTO updateOrderStatus(Long orderId, String status, String callerEmail);
 }

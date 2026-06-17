@@ -48,6 +48,9 @@ class LoadStressTest {
     @LocalServerPort
     private int port;
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.ontheway.repository.MerchantRepository merchantRepository;
+
     private final HttpClient http = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(10)).build();
     private final ObjectMapper mapper = new ObjectMapper();
@@ -66,13 +69,14 @@ class LoadStressTest {
     void setUp() throws Exception {
         baseUrl = "http://localhost:" + port;
 
-        // Onboard one merchant with a located store and a single menu item.
+        // Onboard one merchant, apply for a shop, and approve it so it is discoverable.
         String merchantToken = registerAndLogin("stress-merchant@ontheway.app", "MERCHANT");
-        String merchantBody = postJson("/api/merchants", """
+        String merchantBody = postJson("/api/merchant/shops", """
                 {"storeName":"Stress Test Store","storeType":"RESTAURANT","address":"Load Lane",
                  "latitude":%s,"longitude":%s,"prepTimeMins":10,"etaBufferMins":5}
                 """.formatted(STORE_LAT, STORE_LNG), merchantToken).body();
         merchantId = mapper.readTree(merchantBody).get("merchantId").asLong();
+        com.ontheway.support.TestFixtures.approve(merchantRepository, merchantId);
 
         String itemBody = postJson("/api/menu-items/" + merchantId, """
                 {"name":"Load Test Meal","price":9.99,"availability":true}

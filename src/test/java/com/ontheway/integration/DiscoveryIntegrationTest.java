@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ontheway.dto.*;
 import com.ontheway.model.enums.StoreType;
 import com.ontheway.model.enums.UserRole;
+import com.ontheway.repository.MerchantRepository;
+import com.ontheway.support.TestFixtures;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -25,6 +27,7 @@ class DiscoveryIntegrationTest {
 
     @Autowired private MockMvc mockMvc;
     @Autowired private ObjectMapper objectMapper;
+    @Autowired private MerchantRepository merchantRepository;
 
     private String registerAndLogin(String email, UserRole role) throws Exception {
         UserCreateDTO reg = UserCreateDTO.builder()
@@ -45,9 +48,7 @@ class DiscoveryIntegrationTest {
         MerchantCreateDTO dto = MerchantCreateDTO.builder()
                 .storeName(name).storeType(type).address("addr")
                 .latitude(lat).longitude(lng).prepTimeMins(10).etaBufferMins(5).build();
-        mockMvc.perform(post("/api/merchants").header("Authorization", token)
-                        .contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isCreated());
+        TestFixtures.applyAndApproveShop(mockMvc, objectMapper, merchantRepository, token, dto);
     }
 
     @Test

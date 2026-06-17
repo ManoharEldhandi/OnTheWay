@@ -29,6 +29,7 @@ class PaymentIntegrationTest {
 
     @Autowired private MockMvc mockMvc;
     @Autowired private ObjectMapper objectMapper;
+    @Autowired private com.ontheway.repository.MerchantRepository merchantRepository;
 
     private String registerAndLogin(String email, UserRole role) throws Exception {
         UserCreateDTO reg = UserCreateDTO.builder()
@@ -47,14 +48,18 @@ class PaymentIntegrationTest {
         return objectMapper.readTree(body).get(field).asLong();
     }
 
+    /** Applies for a shop as the given merchant (Bearer token) and approves it; returns shop id. */
+    private long applyApprove(String bearerToken, MerchantCreateDTO dto) throws Exception {
+        return com.ontheway.support.TestFixtures.applyAndApproveShop(
+                mockMvc, objectMapper, merchantRepository, bearerToken, dto);
+    }
+
     @Test
     void payOrder_throughMockGateway_completesAndIsIdempotent() throws Exception {
         String merchantToken = registerAndLogin("pay-merch@x.com", UserRole.MERCHANT);
-        long merchantId = json(mockMvc.perform(post("/api/merchants").header("Authorization", merchantToken)
-                .contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(
-                        MerchantCreateDTO.builder().storeName("Pay Store").storeType(StoreType.RESTAURANT)
-                                .address("addr").etaBufferMins(5).build())))
-                .andReturn().getResponse().getContentAsString(), "merchantId");
+        long merchantId = applyApprove(merchantToken,
+                MerchantCreateDTO.builder().storeName("Pay Store").storeType(StoreType.RESTAURANT)
+                        .address("addr").etaBufferMins(5).build());
         long menuItemId = json(mockMvc.perform(post("/api/menu-items/" + merchantId).header("Authorization", merchantToken)
                 .contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(
                         MenuItemCreateDTO.builder().name("Combo").price(50.0).availability(true).build())))
@@ -90,11 +95,9 @@ class PaymentIntegrationTest {
     @Test
     void payOrder_byNonOwner_isForbidden() throws Exception {
         String merchantToken = registerAndLogin("pay2-merch@x.com", UserRole.MERCHANT);
-        long merchantId = json(mockMvc.perform(post("/api/merchants").header("Authorization", merchantToken)
-                .contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(
-                        MerchantCreateDTO.builder().storeName("S2").storeType(StoreType.CAFE)
-                                .address("a").etaBufferMins(5).build())))
-                .andReturn().getResponse().getContentAsString(), "merchantId");
+        long merchantId = applyApprove(merchantToken,
+                MerchantCreateDTO.builder().storeName("S2").storeType(StoreType.CAFE)
+                        .address("a").etaBufferMins(5).build());
         long menuItemId = json(mockMvc.perform(post("/api/menu-items/" + merchantId).header("Authorization", merchantToken)
                 .contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(
                         MenuItemCreateDTO.builder().name("Tea").price(20.0).availability(true).build())))

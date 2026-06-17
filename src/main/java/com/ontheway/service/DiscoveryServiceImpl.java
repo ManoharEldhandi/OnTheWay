@@ -5,6 +5,7 @@ import com.ontheway.fulfillment.GeoPoint;
 import com.ontheway.fulfillment.RouteEstimate;
 import com.ontheway.fulfillment.RouteProvider;
 import com.ontheway.model.Merchant;
+import com.ontheway.model.enums.MerchantStatus;
 import com.ontheway.model.enums.StoreType;
 import com.ontheway.repository.MerchantRepository;
 import com.ontheway.service.DiscoveryService;
@@ -15,7 +16,7 @@ import java.util.Comparator;
 import java.util.List;
 
 /**
- * In-memory geo discovery: loads located stores (optionally by category), computes the
+ * In-memory geo discovery: loads located, approved shops (optionally by category), computes the
  * route from the customer to each, keeps those within the radius, and orders nearest-first.
  *
  * <p>For the expected demo dataset this is simple and fast. At scale this would be replaced
@@ -34,9 +35,12 @@ public class DiscoveryServiceImpl implements DiscoveryService {
                                                    double radiusKm, StoreType storeType) {
         GeoPoint origin = new GeoPoint(latitude, longitude);
 
+        // Only approved, located shops are publicly discoverable.
         List<Merchant> candidates = (storeType == null)
-                ? merchantRepository.findByLatitudeIsNotNullAndLongitudeIsNotNull()
-                : merchantRepository.findByStoreTypeAndLatitudeIsNotNullAndLongitudeIsNotNull(storeType);
+                ? merchantRepository.findByStatusAndLatitudeIsNotNullAndLongitudeIsNotNull(
+                        MerchantStatus.APPROVED)
+                : merchantRepository.findByStatusAndStoreTypeAndLatitudeIsNotNullAndLongitudeIsNotNull(
+                        MerchantStatus.APPROVED, storeType);
 
         return candidates.stream()
                 .map(m -> {

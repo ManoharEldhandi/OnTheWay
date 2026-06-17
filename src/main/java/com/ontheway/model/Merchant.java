@@ -1,5 +1,6 @@
 package com.ontheway.model;
 
+import com.ontheway.model.enums.MerchantStatus;
 import com.ontheway.model.enums.StoreType;
 import com.ontheway.model.enums.UserRole;
 import lombok.*;
@@ -21,8 +22,12 @@ public class Merchant {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long merchantId;
 
-    @OneToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "user_id", nullable = false, unique = true)
+    /**
+     * The owner of this shop. One owner can operate many shops, so this is a many-to-one
+     * relationship (it was previously one-to-one).
+     */
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
     @Column(nullable = false, length = 150)
@@ -31,6 +36,19 @@ public class Merchant {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private StoreType storeType;
+
+    /**
+     * Marketplace lifecycle status. New shops are created as {@link MerchantStatus#PENDING}
+     * and become discoverable only when an administrator approves them.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    @Builder.Default
+    private MerchantStatus status = MerchantStatus.PENDING;
+
+    /** Reason recorded when an administrator rejects or suspends the shop. */
+    @Column(length = 500)
+    private String statusReason;
 
     @Column(nullable = false, length = 300)
     private String address;

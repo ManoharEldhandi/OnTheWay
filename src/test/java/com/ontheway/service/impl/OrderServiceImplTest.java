@@ -46,7 +46,8 @@ class OrderServiceImplTest {
     void setup() {
         customer = User.builder().userId(1L).email("cust@x.com").role(UserRole.USER).build();
         merchantUser = User.builder().userId(2L).email("merch@x.com").role(UserRole.MERCHANT).build();
-        merchant = Merchant.builder().merchantId(10L).user(merchantUser).build();
+        merchant = Merchant.builder().merchantId(10L).user(merchantUser)
+                .status(com.ontheway.model.enums.MerchantStatus.APPROVED).build();
         item = MenuItem.builder().menuItemId(100L).merchant(merchant)
                 .name("Burger").price(5.0).availability(true).build();
     }

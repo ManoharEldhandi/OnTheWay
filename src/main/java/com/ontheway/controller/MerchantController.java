@@ -2,6 +2,7 @@ package com.ontheway.controller;
 
 import com.ontheway.dto.*;
 import com.ontheway.service.MerchantService;
+import com.ontheway.service.OrderService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.*;
@@ -9,57 +10,66 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
+/**
+ * Merchant self-service API. Every operation is scoped to the authenticated merchant: a merchant
+ * can apply to open shops, manage the shops they own, and see the orders placed at those shops.
+ */
 @RestController
-@RequestMapping("/api/merchants")
+@RequestMapping("/api/merchant")
 @RequiredArgsConstructor
 public class MerchantController {
 
     private final MerchantService merchantService;
+    private final OrderService orderService;
 
-    /**
-     * Register a merchant for the authenticated user.
-     */
+    /** Submit a new shop application. The shop starts in PENDING status until an admin approves it. */
     @PreAuthorize("hasRole('MERCHANT')")
-    @PostMapping
-    public ResponseEntity<MerchantResponseDTO> registerMerchant(
-            Authentication auth,
-            @Valid @RequestBody MerchantCreateDTO dto) {
-
-        String email = auth.getName(); // JWT subject (email)
-        MerchantResponseDTO response = merchantService.registerMerchant(email, dto);
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    @PostMapping("/shops")
+    public ResponseEntity<MerchantResponseDTO> applyForShop(
+            Authentication auth, @Valid @RequestBody MerchantCreateDTO dto) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(merchantService.applyForShop(auth.getName(), dto));
     }
 
-    /**
-     * Get merchant by ID (accessible to MERCHANT and ADMIN).
-     */
-    @PreAuthorize("hasRole('MERCHANT') or hasRole('ADMIN')")
-    @GetMapping("/{id}")
-    public ResponseEntity<MerchantResponseDTO> getMerchant(
-            @PathVariable("id") Long id) {
-
-        return ResponseEntity.ok(merchantService.getMerchantById(id));
+    /** List the merchant's own shops with their current lifecycle status. */
+    @PreAuthorize("hasRole('MERCHANT')")
+    @GetMapping("/shops")
+    public ResponseEntity<List<MerchantResponseDTO>> myShops(Authentication auth) {
+        return ResponseEntity.ok(merchantService.listMyShops(auth.getName()));
     }
 
-    /**
-     * Update a merchant by ID (MERCHANT only).
-     */
+    /** Get one of the merchant's own shops. */
     @PreAuthorize("hasRole('MERCHANT')")
-    @PutMapping("/{id}")
-    public ResponseEntity<MerchantResponseDTO> updateMerchant(
-            @PathVariable("id") Long id,
+    @GetMapping("/shops/{shopId}")
+    public ResponseEntity<MerchantResponseDTO> myShop(
+            Authentication auth, @PathVariable("shopId") Long shopId) {
+        return ResponseEntity.ok(merchantService.getMyShop(auth.getName(), shopId));
+    }
+
+    /** Update one of the merchant's own shops (profile, location, prep time, ETA buffer). */
+    @PreAuthorize("hasRole('MERCHANT')")
+    @PutMapping("/shops/{shopId}")
+    public ResponseEntity<MerchantResponseDTO> updateShop(
+            Authentication auth, @PathVariable("shopId") Long shopId,
             @Valid @RequestBody MerchantUpdateDTO dto) {
-
-        return ResponseEntity.ok(merchantService.updateMerchant(id, dto));
+        return ResponseEntity.ok(merchantService.updateMyShop(auth.getName(), shopId, dto));
     }
 
-    /**
-     * Delete a merchant by ID (ADMIN only).
-     */
-    @PreAuthorize("hasRole('ADMIN')")
-    @DeleteMapping("/{id}")
-    public ResponseEntity<?> deleteMerchant(@PathVariable("id") Long id) {
-        merchantService.deleteMerchant(id);
+    /** Delete one of the merchant's own shops. */
+    @PreAuthorize("hasRole('MERCHANT')")
+    @DeleteMapping("/shops/{shopId}")
+    public ResponseEntity<Void> deleteShop(
+            Authentication auth, @PathVariable("shopId") Long shopId) {
+        merchantService.deleteMyShop(auth.getName(), shopId);
         return ResponseEntity.noContent().build();
+    }
+
+    /** The merchant's order queue: every order across all of the merchant's shops. */
+    @PreAuthorize("hasRole('MERCHANT')")
+    @GetMapping("/orders")
+    public ResponseEntity<List<OrderResponseDTO>> myOrders(Authentication auth) {
+        return ResponseEntity.ok(orderService.getOrdersForOwner(auth.getName()));
     }
 }

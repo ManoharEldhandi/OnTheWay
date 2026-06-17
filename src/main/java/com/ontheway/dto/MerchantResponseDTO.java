@@ -1,6 +1,7 @@
 package com.ontheway.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.ontheway.model.enums.MerchantStatus;
 import com.ontheway.model.enums.StoreType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -25,6 +26,12 @@ public class MerchantResponseDTO {
 
     @JsonProperty("storeType")
     private StoreType storeType;
+
+    @JsonProperty("status")
+    private MerchantStatus status;
+
+    @JsonProperty("statusReason")
+    private String statusReason;
 
     @JsonProperty("address")
     private String address;

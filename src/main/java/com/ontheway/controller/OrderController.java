@@ -1,8 +1,6 @@
 package com.ontheway.controller;
 
 import com.ontheway.dto.*;
-import com.ontheway.model.Merchant;
-import com.ontheway.repository.MerchantRepository;
 import com.ontheway.repository.UserRepository;
 import com.ontheway.service.OrderService;
 import jakarta.validation.Valid;
@@ -21,7 +19,6 @@ public class OrderController {
 
     private final OrderService orderService;
     private final UserRepository userRepository;
-    private final MerchantRepository merchantRepository;
 
     @PreAuthorize("hasRole('USER')")
     @PostMapping
@@ -48,8 +45,7 @@ public class OrderController {
     @PreAuthorize("hasRole('MERCHANT')")
     @GetMapping("/merchant")
     public ResponseEntity<List<OrderResponseDTO>> getOrdersForMerchant(Authentication auth) {
-        Long merchantId = extractMerchantId(auth);
-        return ResponseEntity.ok(orderService.getOrdersByMerchant(merchantId));
+        return ResponseEntity.ok(orderService.getOrdersForOwner(auth.getName()));
     }
 
     @PreAuthorize("hasRole('MERCHANT')")
@@ -66,12 +62,5 @@ public class OrderController {
         return userRepository.findByEmailIgnoreCase(email)
                 .orElseThrow(() -> new RuntimeException("User not found with email: " + email))
                 .getUserId();
-    }
-
-    private Long extractMerchantId(Authentication authentication) {
-        Long userId = extractUserId(authentication);
-        return merchantRepository.findByUser_UserId(userId)
-                .orElseThrow(() -> new RuntimeException("Merchant not found for user"))
-                .getMerchantId();
     }
 }

@@ -11,6 +11,11 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     List<Order> findByUserUserId(Long userId);
     List<Order> findByMerchantMerchantId(Long merchantId);
 
+    /** All orders across every shop owned by a user (the merchant's full order queue). */
+    List<Order> findByMerchant_User_UserId(Long ownerUserId);
+
     /** Orders in a given status whose prep-start time is at or before the cutoff. */
     List<Order> findByStatusAndPrepStartAtLessThanEqual(OrderStatus status, LocalDateTime cutoff);
+
+    long countByStatus(OrderStatus status);
 }

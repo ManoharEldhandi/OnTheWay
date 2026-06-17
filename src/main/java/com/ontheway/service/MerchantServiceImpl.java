@@ -1,13 +1,17 @@
 package com.ontheway.service.impl;
 
 import com.ontheway.dto.*;
+import com.ontheway.exception.ForbiddenException;
 import com.ontheway.exception.ResourceNotFoundException;
 import com.ontheway.model.*;
+import com.ontheway.model.enums.MerchantStatus;
 import com.ontheway.repository.*;
 import com.ontheway.service.MerchantService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -18,14 +22,15 @@ public class MerchantServiceImpl implements MerchantService {
 
     @Transactional
     @Override
-    public MerchantResponseDTO registerMerchant(String email, MerchantCreateDTO dto) {
-        User user = userRepository.findByEmailIgnoreCase(email)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + email));
+    public MerchantResponseDTO applyForShop(String email, MerchantCreateDTO dto) {
+        User owner = resolveUser(email);
 
-        Merchant merchant = Merchant.builder()
-                .user(user)
+        // A new shop is an application: it starts PENDING and is not yet discoverable.
+        Merchant shop = Merchant.builder()
+                .user(owner)
                 .storeName(dto.getStoreName())
                 .storeType(dto.getStoreType())
+                .status(MerchantStatus.PENDING)
                 .address(dto.getAddress())
                 .latitude(dto.getLatitude())
                 .longitude(dto.getLongitude())
@@ -33,41 +38,66 @@ public class MerchantServiceImpl implements MerchantService {
                 .etaBufferMins(dto.getEtaBufferMins())
                 .build();
 
-        merchantRepository.save(merchant);
-        return toResponseDTO(merchant);
+        merchantRepository.save(shop);
+        return toResponseDTO(shop);
+    }
+
+    @Override
+    public List<MerchantResponseDTO> listMyShops(String email) {
+        User owner = resolveUser(email);
+        return merchantRepository.findByUser_UserId(owner.getUserId())
+                .stream().map(this::toResponseDTO).toList();
+    }
+
+    @Override
+    public MerchantResponseDTO getMyShop(String email, Long shopId) {
+        return toResponseDTO(requireOwnedShop(email, shopId));
+    }
+
+    @Transactional
+    @Override
+    public MerchantResponseDTO updateMyShop(String email, Long shopId, MerchantUpdateDTO dto) {
+        Merchant shop = requireOwnedShop(email, shopId);
+        shop.setStoreName(dto.getStoreName());
+        shop.setAddress(dto.getAddress());
+        shop.setLatitude(dto.getLatitude());
+        shop.setLongitude(dto.getLongitude());
+        shop.setPrepTimeMins(dto.getPrepTimeMins());
+        shop.setEtaBufferMins(dto.getEtaBufferMins());
+        merchantRepository.save(shop);
+        return toResponseDTO(shop);
+    }
+
+    @Transactional
+    @Override
+    public void deleteMyShop(String email, Long shopId) {
+        Merchant shop = requireOwnedShop(email, shopId);
+        merchantRepository.delete(shop);
     }
 
     @Override
     public MerchantResponseDTO getMerchantById(Long merchantId) {
         return merchantRepository.findById(merchantId)
                 .map(this::toResponseDTO)
-                .orElseThrow(() -> new ResourceNotFoundException("Merchant not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Shop not found"));
     }
 
-    @Transactional
-    @Override
-    public MerchantResponseDTO updateMerchant(Long merchantId, MerchantUpdateDTO dto) {
-        Merchant merchant = merchantRepository.findById(merchantId)
-                .orElseThrow(() -> new ResourceNotFoundException("Merchant not found"));
+    // ----- helpers -------------------------------------------------------
 
-        merchant.setStoreName(dto.getStoreName());
-        merchant.setAddress(dto.getAddress());
-        merchant.setLatitude(dto.getLatitude());
-        merchant.setLongitude(dto.getLongitude());
-        merchant.setPrepTimeMins(dto.getPrepTimeMins());
-        merchant.setEtaBufferMins(dto.getEtaBufferMins());
-
-        merchantRepository.save(merchant);
-        return toResponseDTO(merchant);
+    private User resolveUser(String email) {
+        return userRepository.findByEmailIgnoreCase(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + email));
     }
 
-    @Transactional
-    @Override
-    public void deleteMerchant(Long merchantId) {
-        if (!merchantRepository.existsById(merchantId)) {
-            throw new ResourceNotFoundException("Merchant not found");
+    /** Loads a shop and verifies the caller owns it. */
+    private Merchant requireOwnedShop(String email, Long shopId) {
+        User owner = resolveUser(email);
+        Merchant shop = merchantRepository.findById(shopId)
+                .orElseThrow(() -> new ResourceNotFoundException("Shop not found"));
+        if (!shop.getUser().getUserId().equals(owner.getUserId())) {
+            throw new ForbiddenException("You do not own this shop");
         }
-        merchantRepository.deleteById(merchantId);
+        return shop;
     }
 
     private MerchantResponseDTO toResponseDTO(Merchant merchant) {
@@ -76,6 +106,8 @@ public class MerchantServiceImpl implements MerchantService {
                 .userId(merchant.getUser().getUserId())
                 .storeName(merchant.getStoreName())
                 .storeType(merchant.getStoreType())
+                .status(merchant.getStatus())
+                .statusReason(merchant.getStatusReason())
                 .address(merchant.getAddress())
                 .latitude(merchant.getLatitude())
                 .longitude(merchant.getLongitude())

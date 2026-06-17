@@ -7,12 +7,19 @@ package com.ontheway.model.enums;
  */
 public enum StoreType {
     RESTAURANT,
+    FAST_FOOD,
     CAFE,
-    PHARMACY,
-    GROCERY,
     BAKERY,
-    RETAIL,
+    PHARMACY,
+    MEDICAL,
+    GROCERY,
+    SUPERMARKET,
+    HOTEL,
+    BOOKSTORE,
     ELECTRONICS,
+    HARDWARE,
     FLORIST,
+    PET_STORE,
+    RETAIL,
     OTHER
 }
