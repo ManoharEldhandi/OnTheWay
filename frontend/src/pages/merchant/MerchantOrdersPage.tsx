@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, ApiError } from '../../api/client';
+import { useOrderRealtime } from '../../realtime';
 import type { OrderResponse, OrderStatus } from '../../types';
 
 // The next legal status in the lifecycle (mirrors the backend state machine).
@@ -25,9 +26,11 @@ export function MerchantOrdersPage() {
 
   useEffect(() => {
     void load();
-    const t = setInterval(load, 4000);
-    return () => clearInterval(t);
   }, [load]);
+
+  useOrderRealtime(useCallback(() => {
+    void load();
+  }, [load]));
 
   async function advance(order: OrderResponse, status: OrderStatus) {
     setBusyId(order.orderId);
@@ -44,11 +47,29 @@ export function MerchantOrdersPage() {
 
   const active = orders.filter((o) => o.status !== 'PICKED' && o.status !== 'CANCELLED');
   const done = orders.filter((o) => o.status === 'PICKED' || o.status === 'CANCELLED');
+  const preparing = orders.filter((o) => o.status === 'PREPARING').length;
+  const ready = orders.filter((o) => o.status === 'READY').length;
 
   return (
     <div className="col">
-      <h1 className="title">Order queue</h1>
-      <p className="sub">Orders across all your shops. Updates live; advance each as you prepare it.</p>
+      <section className="page-head">
+        <div className="hero-block motion-line">
+          <span className="kicker">Merchant queue / live status</span>
+          <h1 className="title">Move orders through.</h1>
+          <p className="sub">Advance every shop's order state from one focused operations queue.</p>
+        </div>
+        <div className="hero-panel">
+          <span className="kicker">Active orders</span>
+          <div className="value">{active.length}</div>
+          <span className="badge info">auto refresh</span>
+        </div>
+      </section>
+
+      <div className="metric-strip">
+        <div className="metric-tile"><span className="kicker">Preparing</span><div className="num">{preparing}</div></div>
+        <div className="metric-tile"><span className="kicker">Ready</span><div className="num">{ready}</div></div>
+        <div className="metric-tile"><span className="kicker">Closed</span><div className="num">{done.length}</div></div>
+      </div>
       {error && <div className="error">{error}</div>}
 
       <h3 className="section-title">Active ({active.length})</h3>
@@ -56,7 +77,7 @@ export function MerchantOrdersPage() {
         {active.map((o) => {
           const next = NEXT[o.status];
           return (
-            <div key={o.orderId} className="card col">
+            <div key={o.orderId} className="card col selectable">
               <div className="spread">
                 <strong>Order #{o.orderId}</strong>
                 <span className={`status ${o.status}`}>{o.status}</span>
@@ -85,7 +106,7 @@ export function MerchantOrdersPage() {
             </div>
           );
         })}
-        {active.length === 0 && <div className="muted">No active orders right now.</div>}
+        {active.length === 0 && <div className="card muted">No active orders right now.</div>}
       </div>
 
       {done.length > 0 && (

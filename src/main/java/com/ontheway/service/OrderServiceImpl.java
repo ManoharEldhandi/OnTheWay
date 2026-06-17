@@ -10,10 +10,14 @@ import com.ontheway.fulfillment.GeoPoint;
 import com.ontheway.model.*;
 import com.ontheway.model.enums.OrderStatus;
 import com.ontheway.model.enums.UserRole;
+import com.ontheway.realtime.OrderRealtimeNotifier;
 import com.ontheway.repository.*;
 import com.ontheway.service.OrderService;
+import com.ontheway.util.Money;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,6 +37,7 @@ public class OrderServiceImpl implements OrderService {
     private final OrderEventRepository orderEventRepository;
     private final LocationRepository locationRepository;
     private final EtaService etaService;
+    private final OrderRealtimeNotifier realtimeNotifier;
 
     @Transactional
     @Override
@@ -83,6 +88,8 @@ public class OrderServiceImpl implements OrderService {
                 .prepStartAt(prepStartAt)
                 .status(OrderStatus.PLACED)
                 .totalAmount(0.0) // Set after items processed
+                .totalAmountMinor(0L)
+                .currency(Money.DEFAULT_CURRENCY)
                 .etaSegment(etaSegment)
                 .build();
 
@@ -112,15 +119,20 @@ public class OrderServiceImpl implements OrderService {
                     .menuItem(item)
                     .quantity(itemDTO.getQuantity())
                     .priceEach(item.getPrice())
+                    .priceEachMinor(Money.toMinor(item.getPrice()))
+                    .currency(item.getCurrency() != null ? item.getCurrency() : Money.DEFAULT_CURRENCY)
                     .build();
             items.add(orderItem);
             total += item.getPrice() * itemDTO.getQuantity();
         }
         order.setItems(items);
         order.setTotalAmount(total);
+        order.setTotalAmountMinor(Money.toMinor(total));
+        order.setCurrency(Money.DEFAULT_CURRENCY);
 
         orderRepository.save(order);
         recordEvent(order, null, OrderStatus.PLACED, user.getEmail(), "Order placed");
+        realtimeNotifier.publish("ORDER_PLACED", order);
         return toResponseDTO(order);
     }
 
@@ -151,6 +163,13 @@ public class OrderServiceImpl implements OrderService {
                 .stream().map(this::toResponseDTO).collect(Collectors.toList());
     }
 
+    @Override
+    public Page<OrderResponseDTO> getOrdersForOwner(String ownerEmail, Pageable pageable) {
+        User owner = resolveCaller(ownerEmail);
+        return orderRepository.findByMerchant_User_UserId(owner.getUserId(), pageable)
+                .map(this::toResponseDTO);
+    }
+
     @Transactional
     @Override
     public OrderResponseDTO updateOrderStatus(Long orderId, String status, String callerEmail) {
@@ -169,6 +188,7 @@ public class OrderServiceImpl implements OrderService {
         order.setStatus(target);
         orderRepository.save(order);
         recordEvent(order, current, target, caller.getEmail(), "Status updated");
+        realtimeNotifier.publish("ORDER_STATUS_CHANGED", order);
         return toResponseDTO(order);
     }
 
@@ -208,6 +228,7 @@ public class OrderServiceImpl implements OrderService {
                 eta.travelMins(), eta.trafficBufferMins(), eta.prepTimeMins(), eta.bufferMins(),
                 readyInMins));
         orderRepository.save(order);
+        realtimeNotifier.publish("ORDER_ETA_CHANGED", order);
 
         return com.ontheway.controller.EtaController.toQuote(merchant.getMerchantId(), eta);
     }
@@ -267,7 +288,11 @@ public class OrderServiceImpl implements OrderService {
                         .menuItemId(oi.getMenuItem().getMenuItemId())
                         .quantity(oi.getQuantity())
                         .priceEach(oi.getPriceEach())
+                        .priceEachMinor(oi.getPriceEachMinor())
                         .totalPrice(oi.getQuantity() * oi.getPriceEach())
+                        .totalPriceMinor((oi.getPriceEachMinor() != null ? oi.getPriceEachMinor()
+                            : Money.toMinor(oi.getPriceEach())) * oi.getQuantity())
+                        .currency(oi.getCurrency() != null ? oi.getCurrency() : Money.DEFAULT_CURRENCY)
                         .build()
         ).collect(Collectors.toList());
 
@@ -281,6 +306,8 @@ public class OrderServiceImpl implements OrderService {
                 .etaSegment(order.getEtaSegment())
                 .status(order.getStatus())
                 .totalAmount(order.getTotalAmount())
+                .totalAmountMinor(order.getTotalAmountMinor())
+                .currency(order.getCurrency() != null ? order.getCurrency() : Money.DEFAULT_CURRENCY)
                 .items(items)
                 .payment(order.getPayment() != null ? PaymentResponseDTO.builder()
                         .paymentId(order.getPayment().getPaymentId())
@@ -288,6 +315,8 @@ public class OrderServiceImpl implements OrderService {
                         .paymentStatus(order.getPayment().getPaymentStatus())
                         .paymentMethod(order.getPayment().getPaymentMethod())
                         .amount(order.getPayment().getAmount())
+                        .amountMinor(order.getPayment().getAmountMinor())
+                        .currency(order.getPayment().getCurrency() != null ? order.getPayment().getCurrency() : Money.DEFAULT_CURRENCY)
                         .paymentTime(order.getPayment().getPaymentTime())
                         .build() : null)
                 .createdAt(order.getCreatedAt())

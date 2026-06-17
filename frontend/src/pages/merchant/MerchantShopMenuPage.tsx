@@ -25,6 +25,9 @@ export function MerchantShopMenuPage() {
 
   useEffect(() => { void load(); }, [shopId]);
 
+  const available = items.filter((item) => item.availability).length;
+  const out = items.length - available;
+
   async function addItem(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
@@ -67,17 +70,24 @@ export function MerchantShopMenuPage() {
 
   return (
     <div className="col">
-      <div className="spread">
-        <div>
-          <h1 className="title">Menu</h1>
-          <p className="sub">Add items, change prices, and toggle availability.</p>
+      <section className="page-head compact">
+        <div className="hero-block motion-line">
+          <span className="kicker">Menu control / shop #{shopId}</span>
+          <h1 className="title">Price it. Stock it. Ship it.</h1>
+          <p className="sub">Add items, edit prices on blur, and flip availability without leaving the board.</p>
         </div>
         <button className="ghost" onClick={() => navigate('/merchant')}>Back to my shops</button>
+      </section>
+
+      <div className="metric-strip">
+        <div className="metric-tile"><span className="kicker">Items</span><div className="num">{items.length}</div></div>
+        <div className="metric-tile"><span className="kicker">In stock</span><div className="num">{available}</div></div>
+        <div className="metric-tile"><span className="kicker">Out</span><div className="num">{out}</div></div>
       </div>
 
       {error && <div className="error">{error}</div>}
 
-      <form className="card filters-grid" onSubmit={addItem}>
+      <form className="card filters-grid motion-line" onSubmit={addItem}>
         <div className="col">
           <label>Item name</label>
           <input value={name} onChange={(e) => setName(e.target.value)} required />
@@ -97,7 +107,7 @@ export function MerchantShopMenuPage() {
 
       <div className="grid cards">
         {items.map((item) => (
-          <div key={item.menuItemId} className="card col">
+          <div key={item.menuItemId} className="card col selectable">
             <div className="spread">
               <strong>{item.name}</strong>
               <span className={`badge ${item.availability ? 'ok' : 'warn'}`}>
@@ -124,7 +134,7 @@ export function MerchantShopMenuPage() {
             </div>
           </div>
         ))}
-        {items.length === 0 && <div className="muted">No items yet. Add your first item above.</div>}
+        {items.length === 0 && <div className="card muted">No items yet. Add your first item above.</div>}
       </div>
     </div>
   );

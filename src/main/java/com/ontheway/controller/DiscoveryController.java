@@ -16,7 +16,7 @@ import java.util.List;
  * Store discovery and search around the customer (the customer dashboard's data source).
  */
 @RestController
-@RequestMapping("/api/discovery")
+@RequestMapping({"/api/discovery", "/api/v1/discovery"})
 @RequiredArgsConstructor
 public class DiscoveryController {
 

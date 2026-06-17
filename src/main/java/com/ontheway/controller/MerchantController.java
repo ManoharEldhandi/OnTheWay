@@ -5,6 +5,8 @@ import com.ontheway.service.MerchantService;
 import com.ontheway.service.OrderService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.*;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -17,7 +19,7 @@ import java.util.List;
  * can apply to open shops, manage the shops they own, and see the orders placed at those shops.
  */
 @RestController
-@RequestMapping("/api/merchant")
+@RequestMapping({"/api/merchant", "/api/v1/merchant"})
 @RequiredArgsConstructor
 public class MerchantController {
 
@@ -71,5 +73,11 @@ public class MerchantController {
     @GetMapping("/orders")
     public ResponseEntity<List<OrderResponseDTO>> myOrders(Authentication auth) {
         return ResponseEntity.ok(orderService.getOrdersForOwner(auth.getName()));
+    }
+
+    @PreAuthorize("hasRole('MERCHANT')")
+    @GetMapping("/orders/page")
+    public ResponseEntity<Page<OrderResponseDTO>> myOrdersPage(Authentication auth, Pageable pageable) {
+        return ResponseEntity.ok(orderService.getOrdersForOwner(auth.getName(), pageable));
     }
 }

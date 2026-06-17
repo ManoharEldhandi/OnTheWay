@@ -23,13 +23,19 @@ export function OrdersPage() {
 
   return (
     <div className="col">
-      <h1 className="title">My orders</h1>
+      <section className="page-head compact">
+        <div className="hero-block">
+          <span className="kicker">Customer orders / tracking</span>
+          <h1 className="title">Pickup history.</h1>
+          <p className="sub">Open any active order to track status, payment, and live ETA.</p>
+        </div>
+      </section>
       {error && <div className="error">{error}</div>}
-      {loading && <div className="muted">Loading…</div>}
-      {!loading && orders.length === 0 && <div className="muted">No orders yet.</div>}
+      {loading && <div className="card muted mono">Loading...</div>}
+      {!loading && orders.length === 0 && <div className="card muted">No orders yet.</div>}
       <div className="grid cards">
         {orders.map((o) => (
-          <Link key={o.orderId} to={`/orders/${o.orderId}`} className="card col" style={{ color: 'inherit' }}>
+          <Link key={o.orderId} to={`/orders/${o.orderId}`} className="card col selectable" style={{ color: 'inherit' }}>
             <div className="spread">
               <strong>Order #{o.orderId}</strong>
               <span className={`status ${o.status}`}>{o.status}</span>

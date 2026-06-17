@@ -25,6 +25,10 @@ export function AdminShopsPage() {
 
   useEffect(() => { void load(); }, [load]);
 
+  const approved = shops.filter((shop) => shop.status === 'APPROVED').length;
+  const pending = shops.filter((shop) => shop.status === 'PENDING').length;
+  const suspended = shops.filter((shop) => shop.status === 'SUSPENDED').length;
+
   async function act(shop: Shop, action: 'suspend' | 'reactivate' | 'delete') {
     setError(null);
     setBusyId(shop.merchantId);
@@ -49,9 +53,23 @@ export function AdminShopsPage() {
 
   return (
     <div className="col">
-      <div>
-        <h1 className="title">Shops</h1>
-        <p className="sub">Moderate the marketplace: suspend, reactivate, or remove shops.</p>
+      <section className="page-head">
+        <div className="hero-block motion-line">
+          <span className="kicker">Admin directory / moderation</span>
+          <h1 className="title">Control the supply side.</h1>
+          <p className="sub">Suspend, reactivate, or delete shops without exposing unsafe inventory.</p>
+        </div>
+        <div className="hero-panel">
+          <span className="kicker">Filtered shops</span>
+          <div className="value">{shops.length}</div>
+          <span className="badge steel">{filter.toLowerCase()}</span>
+        </div>
+      </section>
+
+      <div className="metric-strip">
+        <div className="metric-tile"><span className="kicker">Approved</span><div className="num">{approved}</div></div>
+        <div className="metric-tile"><span className="kicker">Pending</span><div className="num">{pending}</div></div>
+        <div className="metric-tile"><span className="kicker">Suspended</span><div className="num">{suspended}</div></div>
       </div>
 
       <div className="row wrap">
@@ -66,7 +84,7 @@ export function AdminShopsPage() {
 
       <div className="grid cards">
         {shops.map((s) => (
-          <div key={s.merchantId} className="card col">
+          <div key={s.merchantId} className="card col selectable">
             <div className="spread">
               <strong>{s.storeName}</strong>
               <span className={`badge ${STATUS_BADGE[s.status] ?? ''}`}>{s.status}</span>
@@ -88,7 +106,7 @@ export function AdminShopsPage() {
             </div>
           </div>
         ))}
-        {shops.length === 0 && <div className="muted">No shops for this filter.</div>}
+        {shops.length === 0 && <div className="card muted">No shops for this filter.</div>}
       </div>
     </div>
   );

@@ -7,6 +7,7 @@ import com.ontheway.model.*;
 import com.ontheway.model.enums.UserRole;
 import com.ontheway.repository.*;
 import com.ontheway.service.MenuItemService;
+import com.ontheway.util.Money;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,6 +33,8 @@ public class MenuItemServiceImpl implements MenuItemService {
                 .name(dto.getName())
                 .description(dto.getDescription())
                 .price(dto.getPrice())
+                .priceMinor(Money.toMinor(dto.getPrice()))
+                .currency(Money.DEFAULT_CURRENCY)
                 .availability(dto.getAvailability())
                 .build();
         menuItemRepository.save(item);
@@ -45,6 +48,8 @@ public class MenuItemServiceImpl implements MenuItemService {
                 .orElseThrow(() -> new ResourceNotFoundException("Menu item not found"));
         assertOwnsMerchant(item.getMerchant(), callerEmail);
         item.setPrice(dto.getPrice());
+        item.setPriceMinor(Money.toMinor(dto.getPrice()));
+        item.setCurrency(Money.DEFAULT_CURRENCY);
         item.setAvailability(dto.getAvailability());
         menuItemRepository.save(item);
         return toResponseDTO(item);
@@ -90,6 +95,8 @@ public class MenuItemServiceImpl implements MenuItemService {
                 .name(item.getName())
                 .description(item.getDescription())
                 .price(item.getPrice())
+                .priceMinor(item.getPriceMinor())
+                .currency(item.getCurrency())
                 .availability(item.getAvailability())
                 .createdAt(item.getCreatedAt())
                 .updatedAt(item.getUpdatedAt())

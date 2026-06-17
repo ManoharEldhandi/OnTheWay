@@ -34,6 +34,12 @@ public class MenuItem {
     @Column(nullable = false)
     private Double price;
 
+    @Column(name = "price_minor")
+    private Long priceMinor;
+
+    @Column(length = 3)
+    private String currency;
+
     @Column(nullable = false)
     private Boolean availability;
 

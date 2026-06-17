@@ -20,4 +20,14 @@ public class MockPaymentGateway implements PaymentGateway {
         String reference = "mock_" + UUID.randomUUID().toString().replace("-", "").substring(0, 16);
         return new ChargeResult(success, reference, "mock");
     }
+
+    @Override
+    public boolean refund(Long orderId, String gatewayReference, double amount, String idempotencyKey) {
+        return amount > 0 && gatewayReference != null && gatewayReference.startsWith("mock_");
+    }
+
+    @Override
+    public boolean verifyWebhook(String payload, String signature) {
+        return "mock".equals(signature);
+    }
 }

@@ -34,6 +34,12 @@ public class Payment {
     @Column(nullable = false)
     private Double amount;
 
+    @Column(name = "amount_minor")
+    private Long amountMinor;
+
+    @Column(length = 3)
+    private String currency;
+
     /** Provider that processed this payment (e.g. mock, stripe, razorpay). */
     @Column(length = 20)
     private String gateway;

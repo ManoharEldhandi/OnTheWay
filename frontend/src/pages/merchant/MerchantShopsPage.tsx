@@ -26,18 +26,33 @@ export function MerchantShopsPage() {
 
   useEffect(() => { void load(); }, []);
 
+  const approved = shops.filter((shop) => shop.status === 'APPROVED').length;
+  const pending = shops.filter((shop) => shop.status === 'PENDING').length;
+  const blocked = shops.filter((shop) => shop.status === 'SUSPENDED' || shop.status === 'REJECTED').length;
+
   return (
     <div className="col">
-      <div className="spread">
-        <div>
-          <h1 className="title">My shops</h1>
-          <p className="sub">Manage your storefronts, menus, and stock.</p>
+      <section className="page-head">
+        <div className="hero-block motion-line">
+          <span className="kicker">Merchant operations / multi-shop</span>
+          <h1 className="title">Run the storefronts.</h1>
+          <p className="sub">Own the menu, stock, price, and applications from one operating board.</p>
         </div>
-        <button className="primary" onClick={() => navigate('/merchant/apply')}>Open a shop</button>
+        <div className="hero-panel">
+          <span className="kicker">Total shops</span>
+          <div className="value">{shops.length}</div>
+          <button className="primary" onClick={() => navigate('/merchant/apply')}>Open a shop</button>
+        </div>
+      </section>
+
+      <div className="metric-strip">
+        <div className="metric-tile"><span className="kicker">Approved</span><div className="num">{approved}</div></div>
+        <div className="metric-tile"><span className="kicker">Pending</span><div className="num">{pending}</div></div>
+        <div className="metric-tile"><span className="kicker">Blocked</span><div className="num">{blocked}</div></div>
       </div>
 
       {error && <div className="error">{error}</div>}
-      {loading && <div className="muted">Loading…</div>}
+      {loading && <div className="card muted mono">Loading...</div>}
       {!loading && shops.length === 0 && (
         <div className="card col">
           <strong>You don't have any shops yet.</strong>
@@ -48,7 +63,7 @@ export function MerchantShopsPage() {
 
       <div className="grid cards">
         {shops.map((s) => (
-          <div key={s.merchantId} className="card col">
+          <div key={s.merchantId} className="card col selectable">
             <div className="spread">
               <strong>{s.storeName}</strong>
               <span className={`badge ${STATUS_BADGE[s.status] ?? ''}`}>{s.status}</span>
@@ -64,7 +79,7 @@ export function MerchantShopsPage() {
             {s.status === 'PENDING' && (
               <span className="muted small">Awaiting administrator approval. You can prepare the menu now.</span>
             )}
-            <Link className="btn" to={`/merchant/shops/${s.merchantId}/menu`}>Manage menu</Link>
+            <Link className="btn primary" to={`/merchant/shops/${s.merchantId}/menu`}>Manage menu</Link>
           </div>
         ))}
       </div>

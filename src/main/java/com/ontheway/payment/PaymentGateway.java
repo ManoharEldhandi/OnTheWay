@@ -19,4 +19,12 @@ public interface PaymentGateway {
      * @param idempotencyKey a client/server key that must make retries safe
      */
     ChargeResult charge(Long orderId, double amount, String method, String idempotencyKey);
+
+    default boolean refund(Long orderId, String gatewayReference, double amount, String idempotencyKey) {
+        throw new UnsupportedOperationException("Refunds are not supported by this payment gateway");
+    }
+
+    default boolean verifyWebhook(String payload, String signature) {
+        return false;
+    }
 }

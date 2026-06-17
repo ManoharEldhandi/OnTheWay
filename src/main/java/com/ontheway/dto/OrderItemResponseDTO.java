@@ -23,6 +23,15 @@ public class OrderItemResponseDTO {
     @JsonProperty("priceEach")
     private Double priceEach;
 
+    @JsonProperty("priceEachMinor")
+    private Long priceEachMinor;
+
     @JsonProperty("totalPrice")
     private Double totalPrice;
+
+    @JsonProperty("totalPriceMinor")
+    private Long totalPriceMinor;
+
+    @JsonProperty("currency")
+    private String currency;
 }

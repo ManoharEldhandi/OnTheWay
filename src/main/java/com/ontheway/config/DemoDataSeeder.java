@@ -5,6 +5,7 @@ import com.ontheway.model.enums.MerchantStatus;
 import com.ontheway.model.enums.StoreType;
 import com.ontheway.model.enums.UserRole;
 import com.ontheway.repository.*;
+import com.ontheway.util.Money;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
@@ -174,7 +175,9 @@ public class DemoDataSeeder implements CommandLineRunner {
 
     private MenuItem item(String name, String description, double price) {
         return MenuItem.builder()
-                .name(name).description(description).price(price).availability(true).build();
+                                .name(name).description(description).price(price)
+                                .priceMinor(Money.toMinor(price)).currency(Money.DEFAULT_CURRENCY)
+                                .availability(true).build();
     }
 
     private double round2(double v) {

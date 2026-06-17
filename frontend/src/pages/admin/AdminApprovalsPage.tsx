@@ -47,17 +47,25 @@ export function AdminApprovalsPage() {
 
   return (
     <div className="col">
-      <div>
-        <h1 className="title">Pending approvals</h1>
-        <p className="sub">Review and decide on new shop applications.</p>
-      </div>
+      <section className="page-head">
+        <div className="hero-block motion-line">
+          <span className="kicker">Admin queue / shop applications</span>
+          <h1 className="title">Approve the map.</h1>
+          <p className="sub">Only approved shops become public, searchable, and orderable.</p>
+        </div>
+        <div className="hero-panel">
+          <span className="kicker">Waiting</span>
+          <div className="value">{pending.length}</div>
+          <span className="badge warn">review queue</span>
+        </div>
+      </section>
 
       {error && <div className="error">{error}</div>}
       {pending.length === 0 && <div className="card muted">No applications waiting. All caught up.</div>}
 
       <div className="grid cards">
         {pending.map((s) => (
-          <div key={s.merchantId} className="card col">
+          <div key={s.merchantId} className="card col selectable">
             <div className="spread">
               <strong>{s.storeName}</strong>
               <span className="badge steel">{s.storeType.toLowerCase().replace('_', ' ')}</span>

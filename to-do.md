@@ -51,11 +51,11 @@
 - [x] **T4.3** Seed **100+ shops across many verticals** for a credible demo.
 
 ## Phase 5 — Real-time, payments & hardening (carried over)
-- [ ] **T5.1** WebSocket channel for live order status + ETA (replace polling).
-- [ ] **T5.2** Real Stripe/Razorpay providers + webhook signature verification; refunds.
-- [ ] **T5.3** Money as minor units + currency.
-- [ ] **T5.4** Refresh tokens + logout; auth rate limiting.
-- [ ] **T5.5** Pagination/sorting on list endpoints; API versioning.
+- [x] **T5.1** WebSocket channel for live order status + ETA (replace polling).
+- [x] **T5.2** Real Stripe/Razorpay providers + webhook signature verification; refunds.
+- [x] **T5.3** Money as minor units + currency.
+- [x] **T5.4** Refresh tokens + logout; auth rate limiting.
+- [x] **T5.5** Pagination/sorting on list endpoints; API versioning.
 
 ---
 

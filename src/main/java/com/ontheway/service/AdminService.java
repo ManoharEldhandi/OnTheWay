@@ -3,6 +3,8 @@ package com.ontheway.service;
 import com.ontheway.dto.AdminMetricsResponse;
 import com.ontheway.dto.MerchantResponseDTO;
 import com.ontheway.model.enums.MerchantStatus;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 
@@ -17,6 +19,8 @@ public interface AdminService {
 
     /** All shops, optionally filtered by status. */
     List<MerchantResponseDTO> listShops(MerchantStatus status);
+
+    Page<MerchantResponseDTO> listShops(MerchantStatus status, Pageable pageable);
 
     /** Approve a pending shop so it becomes discoverable. */
     MerchantResponseDTO approveShop(Long shopId);

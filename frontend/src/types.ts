@@ -49,6 +49,8 @@ export interface SearchResult {
   itemName: string;
   description: string | null;
   price: number;
+  priceMinor?: number;
+  currency?: string;
   merchantId: number;
   storeName: string;
   storeType: StoreType;
@@ -79,6 +81,8 @@ export interface MenuItem {
   name: string;
   description: string | null;
   price: number;
+  priceMinor?: number;
+  currency?: string;
   availability: boolean;
 }
 
@@ -100,7 +104,10 @@ export interface OrderItemResponse {
   menuItemId: number;
   quantity: number;
   priceEach: number;
+  priceEachMinor?: number;
   totalPrice: number;
+  totalPriceMinor?: number;
+  currency?: string;
 }
 
 export interface OrderResponse {
@@ -112,6 +119,8 @@ export interface OrderResponse {
   etaSegment: string | null;
   status: OrderStatus;
   totalAmount: number;
+  totalAmountMinor?: number;
+  currency?: string;
   items: OrderItemResponse[];
 }
 

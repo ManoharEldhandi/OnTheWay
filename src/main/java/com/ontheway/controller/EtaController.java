@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.*;
  * Powers the customer-facing countdown before an order is placed.
  */
 @RestController
-@RequestMapping("/api/eta")
+@RequestMapping({"/api/eta", "/api/v1/eta"})
 @RequiredArgsConstructor
 public class EtaController {
 

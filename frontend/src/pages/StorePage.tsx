@@ -26,25 +26,33 @@ export function StorePage() {
   }, [merchantId]);
 
   const cartCount = cart.lines.reduce((n, l) => n + l.quantity, 0);
+  const available = items.filter((item) => item.availability).length;
 
   return (
     <div className="col">
-      <div className="spread">
-        <div>
-          <h1 className="title">Menu</h1>
-          <p className="sub">Add items, then check out with a live ETA.</p>
+      <section className="page-head compact">
+        <div className="hero-block">
+          <span className="kicker">Shop menu / ETA cart</span>
+          <h1 className="title">Build the pickup.</h1>
+          <p className="sub">Choose available items and check out against a live arrival window.</p>
         </div>
         <button className="ghost" onClick={() => navigate('/')}>Back to discovery</button>
+      </section>
+
+      <div className="metric-strip">
+        <div className="metric-tile"><span className="kicker">Items</span><div className="num">{items.length}</div></div>
+        <div className="metric-tile"><span className="kicker">Available</span><div className="num">{available}</div></div>
+        <div className="metric-tile"><span className="kicker">Cart</span><div className="num">{cartCount}</div></div>
       </div>
 
       {error && <div className="error">{error}</div>}
-      {loading && <div className="muted">Loading menu…</div>}
+      {loading && <div className="card muted mono">Loading menu...</div>}
 
       <div className="grid cards">
         {items.map((item) => {
           const inCart = cart.lines.find((l) => l.item.menuItemId === item.menuItemId)?.quantity ?? 0;
           return (
-            <div key={item.menuItemId} className="card col">
+            <div key={item.menuItemId} className="card col selectable">
               <div className="spread">
                 <strong>{item.name}</strong>
                 <span className="price">₹{item.price.toFixed(0)}</span>
@@ -54,7 +62,7 @@ export function StorePage() {
               <div className="spread">
                 {inCart > 0 ? (
                   <div className="row">
-                    <button onClick={() => cart.remove(item.menuItemId)}>−</button>
+                    <button onClick={() => cart.remove(item.menuItemId)}>-</button>
                     <strong>{inCart}</strong>
                     <button onClick={() => cart.add(item)} disabled={!item.availability}>+</button>
                   </div>

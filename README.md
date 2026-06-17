@@ -152,6 +152,8 @@ For the 1,000-user load test, see [docs/STRESS_TESTING.md](docs/STRESS_TESTING.m
   [phase-3 (payments)](docs/phase-3-payments.md),
   [live ETA & traffic window](docs/live-eta-tracking.md),
   [persistence & portability](docs/persistence-and-portability.md),
+  [product UI redesign](docs/product-ui-redesign.md),
+  [phase-5 realtime/payments/hardening](docs/phase-5-realtime-payments-hardening.md),
   [phase-5 (frontend)](docs/phase-5-frontend.md).
 
 ---

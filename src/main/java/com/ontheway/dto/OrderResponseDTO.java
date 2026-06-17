@@ -42,6 +42,12 @@ public class OrderResponseDTO {
     @JsonProperty("totalAmount")
     private Double totalAmount;
 
+    @JsonProperty("totalAmountMinor")
+    private Long totalAmountMinor;
+
+    @JsonProperty("currency")
+    private String currency;
+
     @JsonProperty("items")
     private List<OrderItemResponseDTO> items;
 

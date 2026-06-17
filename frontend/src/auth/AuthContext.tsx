@@ -2,7 +2,9 @@ import {
   createContext, useCallback, useContext, useEffect, useMemo, useState,
 } from 'react';
 import type { ReactNode } from 'react';
-import { api, clearToken, getToken, setToken } from '../api/client';
+import {
+  api, clearAuthTokens, getRefreshToken, getToken, setRefreshToken, setToken,
+} from '../api/client';
 import type { UserResponse, UserRole } from '../types';
 
 interface AuthState {
@@ -10,7 +12,13 @@ interface AuthState {
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, name: string, role: UserRole) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
+}
+
+interface AuthResponse {
+  token: string;
+  accessToken?: string;
+  refreshToken: string;
 }
 
 const AuthContext = createContext<AuthState | undefined>(undefined);
@@ -29,7 +37,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const me = await api.get<UserResponse>('/api/users/me');
       setUser(me);
     } catch {
-      clearToken();
+      clearAuthTokens();
       setUser(null);
     } finally {
       setLoading(false);
@@ -41,8 +49,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [loadMe]);
 
   const login = useCallback(async (email: string, password: string) => {
-    const { token } = await api.post<{ token: string }>('/api/auth/login', { email, password });
-    setToken(token);
+    const { accessToken, token, refreshToken } = await api.post<AuthResponse>(
+      '/api/auth/login', { email, password },
+    );
+    setToken(accessToken ?? token);
+    setRefreshToken(refreshToken);
     await loadMe();
   }, [loadMe]);
 
@@ -54,8 +65,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [login],
   );
 
-  const logout = useCallback(() => {
-    clearToken();
+  const logout = useCallback(async () => {
+    const refreshToken = getRefreshToken();
+    if (refreshToken) {
+      const payload = JSON.stringify({ refreshToken });
+      if (navigator.sendBeacon) {
+        navigator.sendBeacon('/api/auth/logout', new Blob([payload], { type: 'application/json' }));
+      } else {
+        void fetch('/api/auth/logout', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: payload, keepalive: true,
+        });
+      }
+    }
+    clearAuthTokens();
     setUser(null);
   }, []);
 

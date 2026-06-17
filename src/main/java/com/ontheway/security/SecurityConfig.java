@@ -21,6 +21,7 @@ import org.springframework.web.cors.CorsConfigurationSource;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+        private final AuthRateLimitFilter authRateLimitFilter;
     private final CustomUserDetailsService userDetailsService;
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
 
@@ -41,17 +42,24 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/swagger-ui.html", "/swagger-ui/**", "/api-docs/**", "/v3/api-docs/**",
                                 "/actuator/health/**", "/actuator/info",
-                                "/api/auth/**"
+                                "/api/auth/**", "/api/v1/auth/**",
+                                "/api/payments/webhook/**", "/api/v1/payments/webhook/**", "/ws/**"
                         ).permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/merchant/**").hasRole("MERCHANT")
+                        .requestMatchers("/api/v1/merchant/**").hasRole("MERCHANT")
                         .requestMatchers(
                                 "/api/users/**", "/api/orders/**", "/api/discovery/**",
                                 "/api/eta/**", "/api/menu-items/**", "/api/payments/**",
-                                "/api/locations/**", "/api/preferences/**"
+                                "/api/locations/**", "/api/preferences/**",
+                                "/api/v1/users/**", "/api/v1/orders/**", "/api/v1/discovery/**",
+                                "/api/v1/eta/**", "/api/v1/menu-items/**", "/api/v1/payments/**",
+                                "/api/v1/locations/**", "/api/v1/preferences/**"
                         ).hasAnyRole("USER", "ADMIN", "MERCHANT")
                         .anyRequest().authenticated()
                 )
+                .addFilterBefore(authRateLimitFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

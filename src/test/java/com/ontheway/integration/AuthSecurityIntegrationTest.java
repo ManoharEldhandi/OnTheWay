@@ -20,7 +20,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * End-to-end HTTP tests for authentication and the JWT security layer.
  * Proves the Phase 0 security fixes through the full filter chain.
  */
-@SpringBootTest
+@SpringBootTest(properties = "ontheway.security.rate-limit.auth-requests-per-minute=10")
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 class AuthSecurityIntegrationTest {
@@ -50,7 +50,61 @@ class AuthSecurityIntegrationTest {
         mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON).content(json(login)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.token").isNotEmpty());
+                .andExpect(jsonPath("$.token").isNotEmpty())
+                .andExpect(jsonPath("$.accessToken").isNotEmpty())
+                .andExpect(jsonPath("$.refreshToken").isNotEmpty());
+    }
+
+    @Test
+    void refresh_rotatesToken_andLogoutRevokesRefreshToken() throws Exception {
+        register("refresh-flow@x.com", UserRole.USER);
+        LoginRequest login = LoginRequest.builder()
+                .email("refresh-flow@x.com").password("password123").build();
+        String body = mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON).content(json(login)))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        String refresh = objectMapper.readTree(body).get("refreshToken").asText();
+
+        String rotatedBody = mockMvc.perform(post("/api/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"refreshToken\":\"" + refresh + "\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").isNotEmpty())
+                .andExpect(jsonPath("$.refreshToken").isNotEmpty())
+                .andReturn().getResponse().getContentAsString();
+
+        // Rotation revokes the previous refresh token.
+        mockMvc.perform(post("/api/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"refreshToken\":\"" + refresh + "\"}"))
+                .andExpect(status().isUnauthorized());
+
+        String nextRefresh = objectMapper.readTree(rotatedBody).get("refreshToken").asText();
+        mockMvc.perform(post("/api/auth/logout")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"refreshToken\":\"" + nextRefresh + "\"}"))
+                .andExpect(status().isNoContent());
+        mockMvc.perform(post("/api/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"refreshToken\":\"" + nextRefresh + "\"}"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void authRateLimit_returns429AfterTooManyAttempts() throws Exception {
+        register("rate-limit@x.com", UserRole.USER);
+        LoginRequest badLogin = LoginRequest.builder()
+                .email("rate-limit@x.com").password("wrong-password").build();
+        for (int i = 0; i < 10; i++) {
+            mockMvc.perform(post("/api/auth/login")
+                                                        .header("X-Forwarded-For", "203.0.113.55")
+                            .contentType(MediaType.APPLICATION_JSON).content(json(badLogin)))
+                    .andExpect(status().isUnauthorized());
+        }
+        mockMvc.perform(post("/api/auth/login")
+                                                .header("X-Forwarded-For", "203.0.113.55")
+                        .contentType(MediaType.APPLICATION_JSON).content(json(badLogin)))
+                .andExpect(status().isTooManyRequests());
     }
 
     @Test

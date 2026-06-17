@@ -5,9 +5,9 @@ import type { AdminMetrics } from '../../types';
 
 function Stat({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="card col" style={{ gap: 4 }}>
-      <span className="muted small">{label}</span>
-      <span className="eta-metric"><span className="value" style={{ fontSize: 26 }}>{value}</span></span>
+    <div className="metric-tile">
+      <span className="kicker">{label}</span>
+      <div className="num">{value}</div>
     </div>
   );
 }
@@ -29,9 +29,10 @@ export function AdminDashboardPage() {
   return (
     <div className="col">
       <div className="spread">
-        <div>
-          <h1 className="title">Platform overview</h1>
-          <p className="sub">Health and activity across the marketplace.</p>
+        <div className="hero-block motion-line" style={{ flex: 1 }}>
+          <span className="kicker">Admin control / marketplace health</span>
+          <h1 className="title">Watch the system.</h1>
+          <p className="sub">Moderation, revenue, orders, and shop state in one command view.</p>
         </div>
         {metrics && metrics.pendingShops > 0 && (
           <Link className="btn primary" to="/admin/approvals">
@@ -46,7 +47,7 @@ export function AdminDashboardPage() {
       {metrics && (
         <>
           <h3 className="section-title">People & shops</h3>
-          <div className="grid cards">
+          <div className="metric-strip">
             <Stat label="Customers" value={metrics.totalCustomers} />
             <Stat label="Merchants" value={metrics.totalMerchants} />
             <Stat label="Total shops" value={metrics.totalShops} />
@@ -56,7 +57,7 @@ export function AdminDashboardPage() {
           </div>
 
           <h3 className="section-title">Orders & revenue</h3>
-          <div className="grid cards">
+          <div className="metric-strip">
             <Stat label="Total orders" value={metrics.totalOrders} />
             <Stat label="Gross revenue" value={`₹${metrics.grossRevenue.toFixed(0)}`} />
             {Object.entries(metrics.ordersByStatus).map(([status, count]) => (

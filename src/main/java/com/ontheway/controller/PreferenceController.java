@@ -12,7 +12,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/preferences")
+@RequestMapping({"/api/preferences", "/api/v1/preferences"})
 @RequiredArgsConstructor
 public class PreferenceController {
 

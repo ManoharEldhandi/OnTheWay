@@ -14,6 +14,8 @@ import com.ontheway.repository.PaymentRepository;
 import com.ontheway.repository.UserRepository;
 import com.ontheway.service.AdminService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -42,6 +44,14 @@ public class AdminServiceImpl implements AdminService {
                 ? merchantRepository.findAll()
                 : merchantRepository.findByStatus(status);
         return shops.stream().map(this::toResponseDTO).toList();
+    }
+
+    @Override
+    public Page<MerchantResponseDTO> listShops(MerchantStatus status, Pageable pageable) {
+        Page<Merchant> shops = (status == null)
+                ? merchantRepository.findAll(pageable)
+                : merchantRepository.findByStatus(status, pageable);
+        return shops.map(this::toResponseDTO);
     }
 
     @Transactional

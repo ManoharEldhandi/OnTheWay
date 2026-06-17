@@ -35,6 +35,7 @@ class OrderServiceImplTest {
     @Mock private OrderItemRepository orderItemRepository;
     @Mock private OrderEventRepository orderEventRepository;
     @Mock private com.ontheway.fulfillment.EtaService etaService;
+        @Mock private com.ontheway.realtime.OrderRealtimeNotifier realtimeNotifier;
     @InjectMocks private OrderServiceImpl orderService;
 
     private User customer;

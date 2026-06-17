@@ -45,6 +45,12 @@ public class Order {
     @Column(nullable = false)
     private Double totalAmount;
 
+    @Column(name = "total_amount_minor")
+    private Long totalAmountMinor;
+
+    @Column(length = 3)
+    private String currency;
+
     @Column(length = 255)
     private String etaSegment;
 

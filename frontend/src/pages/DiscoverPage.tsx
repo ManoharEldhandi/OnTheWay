@@ -19,7 +19,7 @@ function label(c: StoreType | 'ALL'): string {
 export function DiscoverPage() {
   const navigate = useNavigate();
   const [coords, setCoords] = useState<Coordinates>(getLocation());
-  const [radiusKm, setRadiusKm] = useState(10);
+  const [radiusKm, setRadiusKm] = useState(20);
   const [category, setCategory] = useState<StoreType | 'ALL'>('ALL');
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<Sort>('relevance');
@@ -80,15 +80,28 @@ export function DiscoverPage() {
   const markers: StoreDiscovery[] = searching
     ? dedupeShops(results)
     : stores;
+  const visibleCount = searching ? results.length : stores.length;
 
   return (
     <div className="col">
-      <div>
-        <h1 className="title">Order on your way</h1>
-        <p className="sub">Pick a category or search for an item; order so it's ready when you arrive.</p>
-      </div>
+      <section className="page-head">
+        <div className="hero-block motion-line">
+          <span className="kicker">Customer command / live pickup</span>
+          <h1 className="title">Find the thing, not just the shop.</h1>
+          <p className="sub">Search across shops and items, compare price and distance, then order against a live ETA window.</p>
+        </div>
+        <div className="hero-panel">
+          <span className="kicker">Showing now</span>
+          <div className="value">{loading ? '...' : visibleCount}</div>
+          <div className="row wrap">
+            <span className="badge">{category === 'ALL' ? 'all verticals' : label(category)}</span>
+            <span className="badge info">{radiusKm} km radius</span>
+            {searching && <span className="badge steel">sort {sort}</span>}
+          </div>
+        </div>
+      </section>
 
-      <div className="card col">
+      <div className="card col motion-line">
         {/* Search bar over shops AND items */}
         <div className="row">
           <input
@@ -143,7 +156,7 @@ export function DiscoverPage() {
       </div>
 
       {error && <div className="error">{error}</div>}
-      {loading && <div className="muted">Searching…</div>}
+      {loading && <div className="card muted mono">Searching...</div>}
 
       <div className="discovery-grid">
         <MapView center={coords} stores={markers} selectedId={selected} onSelect={setSelected} />
@@ -185,7 +198,7 @@ function StoreResults({ stores, loading, radiusKm, onOpen, selected, onSelect }:
             <span className="badge">{s.travelMins} min away</span>
             {s.prepTimeMins != null && <span className="badge warn">~{s.prepTimeMins} min prep</span>}
           </div>
-          <button className="primary" onClick={() => onOpen(s.merchantId)}>View menu</button>
+          <button className="primary" onClick={() => onOpen(s.merchantId)}>Open menu</button>
         </div>
       ))}
     </>
@@ -216,7 +229,7 @@ function SearchResults({ results, loading, onOpen, selected, onSelect }: {
             <span className="badge info">{r.distanceKm} km</span>
             <span className="badge">{r.travelMins} min away</span>
           </div>
-          <button className="primary" onClick={() => onOpen(r.merchantId)}>View shop</button>
+          <button className="primary" onClick={() => onOpen(r.merchantId)}>Open shop</button>
         </div>
       ))}
     </>

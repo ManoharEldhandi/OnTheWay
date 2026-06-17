@@ -34,6 +34,12 @@ public class OrderItem {
     @Column(nullable = false)
     private Double priceEach;
 
+    @Column(name = "price_each_minor")
+    private Long priceEachMinor;
+
+    @Column(length = 3)
+    private String currency;
+
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;

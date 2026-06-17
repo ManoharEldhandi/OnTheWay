@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { api, ApiError } from '../api/client';
+import { useOrderRealtime } from '../realtime';
 import type { EtaQuote, OrderResponse, OrderStatus } from '../types';
 
 interface PaymentInfo {
@@ -30,7 +31,7 @@ export function OrderPage() {
   const [trackError, setTrackError] = useState<string | null>(null);
   const watchId = useRef<number | null>(null);
 
-  async function load() {
+  const load = useCallback(async () => {
     try {
       const data = await api.get<OrderResponse>(`/api/orders/${orderId}`);
       setOrder(data);
@@ -43,15 +44,17 @@ export function OrderPage() {
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Failed to load order');
     }
-  }
+  }, [orderId]);
 
   useEffect(() => {
     void load();
-    // Poll so the customer sees live status changes from the merchant.
-    const t = setInterval(load, 4000);
-    return () => clearInterval(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orderId]);
+  }, [load]);
+
+  useOrderRealtime(useCallback((event) => {
+    if (String(event.orderId) === String(orderId)) {
+      void load();
+    }
+  }, [load, orderId]));
 
   function stopTracking() {
     if (watchId.current !== null && navigator.geolocation) {
@@ -108,10 +111,18 @@ export function OrderPage() {
 
   return (
     <div className="col">
-      <div className="spread">
-        <h1 className="title">Order #{order.orderId}</h1>
-        <span className={`status ${order.status}`}>{order.status}</span>
-      </div>
+      <section className="page-head">
+        <div className="hero-block motion-line">
+          <span className="kicker">Live order / #{order.orderId}</span>
+          <h1 className="title">Track the pickup.</h1>
+          <p className="sub">Status, payment, and route timing stay in one operational view.</p>
+        </div>
+        <div className="hero-panel">
+          <span className="kicker">Current state</span>
+          <div className="value" style={{ fontSize: 42 }}>{order.status}</div>
+          <span className={`status ${order.status}`}>{order.status}</span>
+        </div>
+      </section>
 
       {payment && (
         <div className="card spread">
@@ -126,7 +137,7 @@ export function OrderPage() {
       )}
 
       {enRoute && (
-        <div className="card col">
+        <div className="card col motion-line">
           <div className="spread">
             <strong>Live tracking</strong>
             <button

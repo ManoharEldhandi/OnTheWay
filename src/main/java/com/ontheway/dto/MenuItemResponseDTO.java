@@ -28,6 +28,12 @@ public class MenuItemResponseDTO {
     @JsonProperty("price")
     private Double price;
 
+    @JsonProperty("priceMinor")
+    private Long priceMinor;
+
+    @JsonProperty("currency")
+    private String currency;
+
     @JsonProperty("availability")
     private Boolean availability;
 

@@ -7,6 +7,8 @@ import com.ontheway.model.enums.MerchantStatus;
 import com.ontheway.service.AdminService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -18,7 +20,7 @@ import java.util.List;
  * ADMIN role.
  */
 @RestController
-@RequestMapping("/api/admin")
+@RequestMapping({"/api/admin", "/api/v1/admin"})
 @PreAuthorize("hasRole('ADMIN')")
 @RequiredArgsConstructor
 public class AdminController {
@@ -36,6 +38,13 @@ public class AdminController {
     public ResponseEntity<List<MerchantResponseDTO>> shops(
             @RequestParam(value = "status", required = false) MerchantStatus status) {
         return ResponseEntity.ok(adminService.listShops(status));
+    }
+
+    @GetMapping("/shops/page")
+    public ResponseEntity<Page<MerchantResponseDTO>> shopsPage(
+            @RequestParam(value = "status", required = false) MerchantStatus status,
+            Pageable pageable) {
+        return ResponseEntity.ok(adminService.listShops(status, pageable));
     }
 
     @PostMapping("/shops/{shopId}/approve")

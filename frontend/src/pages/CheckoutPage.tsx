@@ -72,10 +72,16 @@ export function CheckoutPage() {
 
   return (
     <div className="col">
-      <h1 className="title">Checkout</h1>
+      <section className="page-head compact">
+        <div className="hero-block motion-line">
+          <span className="kicker">Checkout / route sync</span>
+          <h1 className="title">Lock the pickup window.</h1>
+          <p className="sub">The order is timed from your current location so the shop starts at the right minute.</p>
+        </div>
+      </section>
 
       {quote && (
-        <div className="card pad-lg">
+        <div className="card pad-lg motion-line">
           <span className="badge ok">ETA-synced pickup</span>
           <div className="eta-grid" style={{ marginTop: 12 }}>
             <div className="eta-metric">
@@ -114,6 +120,10 @@ export function CheckoutPage() {
       )}
 
       <div className="card col">
+        <div className="spread">
+          <strong>Cart manifest</strong>
+          <span className="badge steel">{cart.lines.length} line(s)</span>
+        </div>
         {cart.lines.map((l) => (
           <div className="spread" key={l.item.menuItemId}>
             <span>{l.quantity} × {l.item.name}</span>

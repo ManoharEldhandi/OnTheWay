@@ -10,7 +10,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/payments")
+@RequestMapping({"/api/payments", "/api/v1/payments"})
 @RequiredArgsConstructor
 public class PaymentController {
 
@@ -45,6 +45,23 @@ public class PaymentController {
     public ResponseEntity<?> updatePaymentStatus(@PathVariable("paymentId") Long paymentId,
                                                  @RequestParam("status") String status) {
         paymentService.updatePaymentStatus(paymentId, status);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping("/{paymentId}/refund")
+    public ResponseEntity<PaymentResponseDTO> refund(@PathVariable("paymentId") Long paymentId) {
+        return ResponseEntity.ok(paymentService.refundPayment(paymentId));
+    }
+
+    @PostMapping("/webhook/{gateway}")
+    public ResponseEntity<Void> webhook(@PathVariable("gateway") String gateway,
+                                        @RequestHeader(value = "Stripe-Signature", required = false) String stripeSig,
+                                        @RequestHeader(value = "X-Razorpay-Signature", required = false) String razorpaySig,
+                                        @RequestHeader(value = "X-Mock-Signature", required = false) String mockSig,
+                                        @RequestBody String payload) {
+        String signature = stripeSig != null ? stripeSig : razorpaySig != null ? razorpaySig : mockSig;
+        paymentService.handleWebhook(gateway, payload, signature);
         return ResponseEntity.noContent().build();
     }
 }

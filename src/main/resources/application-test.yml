@@ -29,6 +29,9 @@ jwt:
 ontheway:
   cors:
     allowed-origins: http://localhost:5173
+  security:
+    rate-limit:
+      auth-requests-per-minute: 1000
   payment:
     provider: mock
   route:

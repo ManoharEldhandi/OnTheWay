@@ -29,6 +29,12 @@ public class PaymentResponseDTO {
     @JsonProperty("amount")
     private Double amount;
 
+    @JsonProperty("amountMinor")
+    private Long amountMinor;
+
+    @JsonProperty("currency")
+    private String currency;
+
     @JsonProperty("gateway")
     private String gateway;
 

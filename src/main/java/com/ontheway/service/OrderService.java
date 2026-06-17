@@ -1,6 +1,8 @@
 package com.ontheway.service;
 
 import com.ontheway.dto.*;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 
@@ -12,6 +14,8 @@ public interface OrderService {
 
     /** All orders across every shop owned by the merchant identified by email. */
     List<OrderResponseDTO> getOrdersForOwner(String ownerEmail);
+
+    Page<OrderResponseDTO> getOrdersForOwner(String ownerEmail, Pageable pageable);
 
     OrderResponseDTO updateOrderStatus(Long orderId, String status, String callerEmail);
 

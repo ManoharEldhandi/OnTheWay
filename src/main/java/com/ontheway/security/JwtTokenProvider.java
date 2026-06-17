@@ -10,6 +10,7 @@ import jakarta.annotation.PostConstruct;
 import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.util.Date;
+import java.util.UUID;
 
 @Component
 @Slf4j
@@ -33,7 +34,12 @@ public class JwtTokenProvider {
 
     /** Issues a short-lived access token for the authenticated principal. */
     public String generateToken(Authentication authentication) {
-        return buildToken(authentication.getName().toLowerCase(), accessTokenExpirationMs, "access");
+        return generateAccessToken(authentication.getName());
+    }
+
+    /** Issues a short-lived access token for a known username/email. */
+    public String generateAccessToken(String username) {
+        return buildToken(username.toLowerCase(), accessTokenExpirationMs, "access");
     }
 
     /** Issues a long-lived refresh token. */
@@ -41,11 +47,16 @@ public class JwtTokenProvider {
         return buildToken(username.toLowerCase(), refreshTokenExpirationMs, "refresh");
     }
 
+    public long getAccessTokenExpirationMs() {
+        return accessTokenExpirationMs;
+    }
+
     private String buildToken(String subject, long ttlMs, String type) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + ttlMs);
         return Jwts.builder()
                 .setSubject(subject)
+            .setId(UUID.randomUUID().toString())
                 .claim("type", type)
                 .setIssuedAt(now)
                 .setExpiration(expiry)

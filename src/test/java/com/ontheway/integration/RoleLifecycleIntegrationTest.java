@@ -175,4 +175,27 @@ class RoleLifecycleIntegrationTest {
                 .andExpect(jsonPath("$.totalShops").isNumber())
                 .andExpect(jsonPath("$.ordersByStatus").exists());
     }
+
+        @Test
+        void versionedPaginatedAdminAndMerchantEndpointsWork() throws Exception {
+                String merchant = token("page-merch@x.com", UserRole.MERCHANT);
+                String admin = adminToken("page-admin@x.com");
+                applyForShop(merchant, "Page One", 12.9716, 77.5946);
+                applyForShop(merchant, "Page Two", 12.9816, 77.6046);
+
+                mockMvc.perform(get("/api/v1/admin/shops/page").header("Authorization", admin)
+                                                .param("status", "PENDING")
+                                                .param("page", "0")
+                                                .param("size", "1")
+                                                .param("sort", "storeName,asc"))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.content.length()").value(1))
+                                .andExpect(jsonPath("$.totalElements").isNumber());
+
+                mockMvc.perform(get("/api/v1/merchant/orders/page").header("Authorization", merchant)
+                                                .param("page", "0")
+                                                .param("size", "5"))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.content").isArray());
+        }
 }
