@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { api, ApiError } from '../api/client';
-import type { OrderResponse, OrderStatus } from '../types';
+import { api, ApiError } from '../../api/client';
+import type { OrderResponse, OrderStatus } from '../../types';
 
 // The next legal status in the lifecycle (mirrors the backend state machine).
 const NEXT: Partial<Record<OrderStatus, OrderStatus>> = {
@@ -9,14 +9,14 @@ const NEXT: Partial<Record<OrderStatus, OrderStatus>> = {
   READY: 'PICKED',
 };
 
-export function MerchantPage() {
+export function MerchantOrdersPage() {
   const [orders, setOrders] = useState<OrderResponse[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     try {
-      const data = await api.get<OrderResponse[]>('/api/orders/merchant');
+      const data = await api.get<OrderResponse[]>('/api/merchant/orders');
       setOrders(data.sort((a, b) => b.orderId - a.orderId));
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Failed to load orders');
@@ -47,11 +47,11 @@ export function MerchantPage() {
 
   return (
     <div className="col">
-      <h1 className="title">Merchant console</h1>
-      <p className="sub">Incoming orders update live. Advance each as you prepare it.</p>
+      <h1 className="title">Order queue</h1>
+      <p className="sub">Orders across all your shops. Updates live; advance each as you prepare it.</p>
       {error && <div className="error">{error}</div>}
 
-      <h3>Active ({active.length})</h3>
+      <h3 className="section-title">Active ({active.length})</h3>
       <div className="grid cards">
         {active.map((o) => {
           const next = NEXT[o.status];
@@ -90,7 +90,7 @@ export function MerchantPage() {
 
       {done.length > 0 && (
         <>
-          <h3>Completed</h3>
+          <h3 className="section-title">Completed</h3>
           <div className="grid cards">
             {done.map((o) => (
               <div key={o.orderId} className="card spread">

@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { ApiError } from '../api/client';
+import { homeFor } from '../App';
 import type { UserRole } from '../types';
 
 export function LoginPage() {
@@ -15,9 +16,10 @@ export function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  if (user) {
-    navigate('/', { replace: true });
-  }
+  // Once authenticated, land on the dashboard for the user's role.
+  useEffect(() => {
+    if (user) navigate(homeFor(user.role), { replace: true });
+  }, [user, navigate]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -29,7 +31,7 @@ export function LoginPage() {
       } else {
         await register(email, password, name || email.split('@')[0], role);
       }
-      navigate('/', { replace: true });
+      // Redirect happens in the effect above once the user is loaded.
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Something went wrong');
     } finally {
