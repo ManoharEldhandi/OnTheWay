@@ -32,9 +32,18 @@ public class EtaQuoteResponse {
     @JsonProperty("bufferMins")
     private Integer bufferMins;
 
+    @JsonProperty("trafficBufferMins")
+    private Integer trafficBufferMins;
+
     @JsonProperty("prepStartAt")
     private LocalDateTime prepStartAt;
 
     @JsonProperty("readyAt")
     private LocalDateTime readyAt;
+
+    @JsonProperty("etaEarliest")
+    private LocalDateTime etaEarliest;
+
+    @JsonProperty("etaLatest")
+    private LocalDateTime etaLatest;
 }

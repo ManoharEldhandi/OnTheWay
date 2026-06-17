@@ -31,6 +31,7 @@ public class OrderServiceImpl implements OrderService {
     private final MenuItemRepository menuItemRepository;
     private final OrderItemRepository orderItemRepository;
     private final OrderEventRepository orderEventRepository;
+    private final LocationRepository locationRepository;
     private final EtaService etaService;
 
     @Transactional
@@ -169,6 +170,46 @@ public class OrderServiceImpl implements OrderService {
         orderRepository.save(order);
         recordEvent(order, current, target, caller.getEmail(), "Status updated");
         return toResponseDTO(order);
+    }
+
+    @Transactional
+    @Override
+    public EtaQuoteResponse updateLiveLocation(Long orderId, double latitude, double longitude,
+                                               String callerEmail) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
+        User caller = resolveCaller(callerEmail);
+
+        // Only the customer who placed the order may stream their location for it.
+        if (!order.getUser().getUserId().equals(caller.getUserId())) {
+            throw new ForbiddenException("You are not allowed to update this order");
+        }
+        if (order.getStatus().isTerminal() || order.getStatus() == OrderStatus.READY) {
+            throw new BadRequestException("This order is no longer en route");
+        }
+
+        // Record the position ping for history/analytics.
+        locationRepository.save(Location.builder()
+                .user(caller)
+                .latitude(latitude)
+                .longitude(longitude)
+                .recordedTime(LocalDateTime.now())
+                .build());
+
+        // Recompute the live ETA from the new position and re-sync the order.
+        Merchant merchant = order.getMerchant();
+        EtaCalculation eta = etaService.estimate(new GeoPoint(latitude, longitude), merchant);
+        order.setPickupTime(eta.readyAt());
+        order.setPrepStartAt(eta.prepStartAt());
+        int readyInMins = Math.max(0,
+                (int) Duration.between(LocalDateTime.now(), eta.readyAt()).toMinutes());
+        order.setEtaSegment(String.format(
+                "live: travel %d min (+%d traffic), prep %d min (+%d buffer); ready ~%d min",
+                eta.travelMins(), eta.trafficBufferMins(), eta.prepTimeMins(), eta.bufferMins(),
+                readyInMins));
+        orderRepository.save(order);
+
+        return com.ontheway.controller.EtaController.toQuote(merchant.getMerchantId(), eta);
     }
 
     // ----- helpers -------------------------------------------------------

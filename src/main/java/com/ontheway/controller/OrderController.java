@@ -57,6 +57,20 @@ public class OrderController {
         return ResponseEntity.ok(orderService.updateOrderStatus(orderId, status, auth.getName()));
     }
 
+    /**
+     * Stream the customer's live position for an active order. The backend recomputes the live
+     * ETA (with a traffic-aware arrival window) and re-syncs the order, returning the updated ETA.
+     */
+    @PreAuthorize("hasRole('USER')")
+    @PostMapping("/{orderId}/location")
+    public ResponseEntity<EtaQuoteResponse> updateLocation(
+            Authentication auth,
+            @PathVariable("orderId") Long orderId,
+            @Valid @RequestBody LocationUpdateDTO dto) {
+        return ResponseEntity.ok(orderService.updateLiveLocation(
+                orderId, dto.getLatitude(), dto.getLongitude(), auth.getName()));
+    }
+
     private Long extractUserId(Authentication authentication) {
         String email = authentication.getName();
         return userRepository.findByEmailIgnoreCase(email)

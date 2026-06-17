@@ -132,4 +132,58 @@ class EtaIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(order)))
                 .andExpect(status().isBadRequest());
     }
+
+    @Test
+    void etaQuote_includesTrafficAwareArrivalWindow() throws Exception {
+        String merchantToken = registerAndLogin("win-merch@x.com", UserRole.MERCHANT);
+        long merchantId = createStoreWithGeo(merchantToken, 12.9716, 77.5946, 10);
+
+        String custToken = registerAndLogin("win-cust@x.com", UserRole.USER);
+        EtaQuoteRequest q = EtaQuoteRequest.builder()
+                .merchantId(merchantId).latitude(13.0716).longitude(77.6946).build(); // ~15 km away
+        mockMvc.perform(post("/api/eta/quote").header("Authorization", custToken)
+                        .contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(q)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.trafficBufferMins").isNumber())
+                .andExpect(jsonPath("$.etaEarliest").isNotEmpty())
+                .andExpect(jsonPath("$.etaLatest").isNotEmpty());
+    }
+
+    @Test
+    void liveLocation_recomputesEta_andIsOwnershipEnforced() throws Exception {
+        String merchantToken = registerAndLogin("live-merch@x.com", UserRole.MERCHANT);
+        long merchantId = createStoreWithGeo(merchantToken, 12.9716, 77.5946, 10);
+        MenuItemCreateDTO item = MenuItemCreateDTO.builder()
+                .name("Vada").price(2.5).availability(true).build();
+        String itemBody = mockMvc.perform(post("/api/menu-items/" + merchantId).header("Authorization", merchantToken)
+                        .contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(item)))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        long menuItemId = objectMapper.readTree(itemBody).get("menuItemId").asLong();
+
+        String custToken = registerAndLogin("live-cust@x.com", UserRole.USER);
+        OrderCreateDTO order = OrderCreateDTO.builder()
+                .merchantId(merchantId).latitude(13.0716).longitude(77.6946).paymentMethod("CARD")
+                .items(List.of(OrderItemCreateDTO.builder().menuItemId(menuItemId).quantity(1).build()))
+                .build();
+        String orderBody = mockMvc.perform(post("/api/orders").header("Authorization", custToken)
+                        .contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(order)))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        long orderId = objectMapper.readTree(orderBody).get("orderId").asLong();
+
+        // Owner streams a closer position -> ETA recomputed and window returned.
+        LocationUpdateDTO closer = LocationUpdateDTO.builder().latitude(12.9916).longitude(77.6146).build();
+        mockMvc.perform(post("/api/orders/" + orderId + "/location").header("Authorization", custToken)
+                        .contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(closer)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.merchantId").value((int) merchantId))
+                .andExpect(jsonPath("$.readyAt").isNotEmpty())
+                .andExpect(jsonPath("$.etaEarliest").isNotEmpty())
+                .andExpect(jsonPath("$.etaLatest").isNotEmpty());
+
+        // A different customer cannot stream location for this order (IDOR guard).
+        String strangerToken = registerAndLogin("live-stranger@x.com", UserRole.USER);
+        mockMvc.perform(post("/api/orders/" + orderId + "/location").header("Authorization", strangerToken)
+                        .contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(closer)))
+                .andExpect(status().isForbidden());
+    }
 }

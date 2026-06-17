@@ -35,18 +35,22 @@ public class EtaController {
         EtaCalculation eta = etaService.estimate(
                 new GeoPoint(request.getLatitude(), request.getLongitude()), merchant);
 
-        return ResponseEntity.ok(EtaQuoteResponse.builder()
-                .merchantId(merchant.getMerchantId())
-                .distanceKm(round(eta.distanceKm()))
+        return ResponseEntity.ok(toQuote(merchant.getMerchantId(), eta));
+    }
+
+    /** Maps an ETA calculation to the API response, including the traffic-aware arrival window. */
+    public static EtaQuoteResponse toQuote(Long merchantId, EtaCalculation eta) {
+        return EtaQuoteResponse.builder()
+                .merchantId(merchantId)
+                .distanceKm(Math.round(eta.distanceKm() * 100.0) / 100.0)
                 .travelMins(eta.travelMins())
                 .prepTimeMins(eta.prepTimeMins())
                 .bufferMins(eta.bufferMins())
+                .trafficBufferMins(eta.trafficBufferMins())
                 .prepStartAt(eta.prepStartAt())
                 .readyAt(eta.readyAt())
-                .build());
-    }
-
-    private double round(double km) {
-        return Math.round(km * 100.0) / 100.0;
+                .etaEarliest(eta.etaEarliest())
+                .etaLatest(eta.etaLatest())
+                .build();
     }
 }

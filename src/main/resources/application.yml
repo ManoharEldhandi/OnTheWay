@@ -33,6 +33,8 @@ ontheway:
   eta:
     average-speed-kmph: ${ETA_AVERAGE_SPEED_KMPH:30}
     safety-buffer-mins: ${ETA_SAFETY_BUFFER_MINS:5}
+    traffic-factor: ${ETA_TRAFFIC_FACTOR:0.25}          # fraction of travel time added as traffic uncertainty (window half-width)
+    min-traffic-buffer-mins: ${ETA_MIN_TRAFFIC_BUFFER_MINS:3}
   payment:
     provider: ${PAYMENT_PROVIDER:mock}   # mock | stripe | razorpay
     stripe:

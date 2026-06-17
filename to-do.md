@@ -28,22 +28,22 @@
 - [x] **T1.11** `GET /api/admin/shops` directory with status filter.
 
 ### Role-separated frontend
-- [ ] **T1.12** Role-aware login + landing; guarded routes per role.
-- [ ] **T1.13** Merchant dashboard (my shops, menu/stock management, order queue, apply for shop).
-- [ ] **T1.14** Admin dashboard (approvals queue, moderation, metrics).
-- [ ] **T1.15** Customer dashboard restructured as its own role experience.
+- [x] **T1.12** Role-aware login + landing; guarded routes per role.
+- [x] **T1.13** Merchant dashboard (my shops, menu/stock management, order queue, apply for shop).
+- [x] **T1.14** Admin dashboard (approvals queue, moderation, metrics).
+- [x] **T1.15** Customer dashboard restructured as its own role experience.
 
 ## Phase 2 — Vertical selection & powerful search
 - [x] **T2.1** Expand category taxonomy (10+ verticals).
 - [x] **T2.2** `GET /api/discovery/search`: match shop **and** item names; return item · price · shop · distance.
 - [x] **T2.3** Sorting by **distance**, **price**, **relevance**; vertical filter. _(open-now filter deferred.)_
-- [ ] **T2.4** Customer UI: vertical picker + search bar + sort controls + results list.
+- [x] **T2.4** Customer UI: vertical picker + search bar + sort controls + results list.
 
 ## Phase 3 — Live ETA + traffic buffer
-- [ ] **T3.1** `POST /api/orders/{id}/location` to push customer position while en route.
-- [ ] **T3.2** **Continuous ETA recompute** on each update; persist updated ready time; re-sync prep start.
-- [ ] **T3.3** **Traffic-aware buffer window** (earliest–latest), configurable per deployment/shop.
-- [ ] **T3.4** Customer live-tracking UI showing the moving ETA window.
+- [x] **T3.1** `POST /api/orders/{id}/location` to push customer position while en route.
+- [x] **T3.2** **Continuous ETA recompute** on each update; persist updated ready time; re-sync prep start.
+- [x] **T3.3** **Traffic-aware buffer window** (earliest–latest), configurable per deployment/shop.
+- [x] **T3.4** Customer live-tracking UI showing the moving ETA window.
 
 ## Phase 4 — Persistence, portability & scale
 - [ ] **T4.1** MySQL as the default durable store for real runs; verify migrations on MySQL.

@@ -88,6 +88,15 @@ export function CheckoutPage() {
               <div className="value">{minutesUntil(quote.prepStartAt) === 0 ? 'now' : `in ${minutesUntil(quote.prepStartAt)} min`}</div>
               <div className="meta">so it's fresh on arrival</div>
             </div>
+            <div className="eta-metric">
+              <div className="label">Arrival window</div>
+              <div className="value" style={{ fontSize: '1.1rem' }}>
+                {new Date(quote.etaEarliest).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                {' – '}
+                {new Date(quote.etaLatest).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </div>
+              <div className="meta">±{quote.trafficBufferMins} min traffic buffer</div>
+            </div>
           </div>
           <div className="timeline">
             <div className="dot on" />

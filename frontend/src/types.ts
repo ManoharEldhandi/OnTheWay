@@ -88,8 +88,11 @@ export interface EtaQuote {
   travelMins: number;
   prepTimeMins: number;
   bufferMins: number;
+  trafficBufferMins: number;
   prepStartAt: string;
   readyAt: string;
+  etaEarliest: string;
+  etaLatest: string;
 }
 
 export interface OrderItemResponse {

@@ -27,7 +27,8 @@ class EtaServiceImplTest {
     private final LocalDateTime now = LocalDateTime.of(2026, 1, 1, 12, 0);
 
     private EtaServiceImpl service() {
-        return new EtaServiceImpl(routeProvider, fixedClock, 15, 5);
+        // trafficFactor 0.25, min traffic buffer 3 min.
+        return new EtaServiceImpl(routeProvider, fixedClock, 15, 5, 0.25, 3);
     }
 
     private Merchant storeWithLocation(int prep, int buffer) {
@@ -47,6 +48,10 @@ class EtaServiceImplTest {
         assertThat(eta.readyAt()).isEqualTo(now.plusMinutes(60));
         assertThat(eta.prepStartAt()).isEqualTo(now.plusMinutes(45));
         assertThat(eta.travelMins()).isEqualTo(60);
+        // Traffic buffer = ceil(60 * 0.25) = 15; window is arrival ± buffer.
+        assertThat(eta.trafficBufferMins()).isEqualTo(15);
+        assertThat(eta.etaLatest()).isEqualTo(now.plusMinutes(75));
+        assertThat(eta.etaEarliest()).isEqualTo(now.plusMinutes(45));
     }
 
     @Test
