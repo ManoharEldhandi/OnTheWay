@@ -46,3 +46,7 @@ logs/
 node_modules/
 dist/
 .vite/
+
+# Private planning / internal docs
+/to-do.md
+/Idea & Documentation/
