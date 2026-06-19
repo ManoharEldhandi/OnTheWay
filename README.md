@@ -1,4 +1,6 @@
-# OnTheWay — order ahead, arrive, pick up, get on your way
+# OnTheWay
+
+> Route-Aware Pickup & Reservation Platform
 
 **OnTheWay** removes the wait. You pre-order from any nearby shop while you're *on the way*,
 and your order is **ready exactly when you arrive** — synchronized to your live ETA. Walk in,
@@ -83,11 +85,12 @@ For full setup, configuration, and a guided walkthrough, see [docs/USAGE.md](doc
   window** (earliest–latest) that updates as they move and widens with traffic.
 - **Ordering**: server-authoritative validation, a real status **state machine**
   (`PLACED → PREPARING → READY → PICKED`, `→ CANCELLED`), and an immutable audit trail.
-- **Payments**: a gateway abstraction with a keyless mock provider; idempotent, ownership-checked.
+- **Payments**: a gateway abstraction with a keyless mock provider by default, plus Stripe and
+  Razorpay adapters, webhook verification, refunds, and ownership-checked flows.
 - **Catalog**: stores (with geo + prep time) and menu items across **16 verticals** (restaurant,
   pharmacy, grocery, café, hotel, electronics, …).
 - **Web app**: role-aware routing → vertical picker + search + map → menu → cart → ETA checkout →
-  live tracking; merchant & admin consoles; a grey-and-silver, grid-based interface.
+  live tracking; merchant & admin consoles; a Swiss, grid-driven black/white/yellow interface.
 - **Engineering**: Flyway migrations, profiles (`dev`/`test`/`prod`/`demo`), externalized
   secrets, a hermetic test suite (H2 + real migrations) **plus a real-MySQL migration test**
   (Testcontainers), a 1,000-user load test, Docker + CI.
@@ -119,7 +122,7 @@ For full setup, configuration, and a guided walkthrough, see [docs/USAGE.md](doc
 │   └── config/             # CORS, Swagger, app beans, demo seeder
 ├── src/main/resources/
 │   ├── application*.yml     # profile configuration
-│   └── db/migration/        # Flyway V1..V6 (SQL) + V6 Java migration (shop lifecycle)
+│   └── db/migration/        # Flyway V1..V8 migrations for lifecycle, auth, and money canonicalization
 ├── src/test/java/...        # unit, slice, integration, and load tests
 ├── frontend/                # React + TS + Vite web client
 ├── Dockerfile  docker-compose.yml  .github/workflows/ci.yml

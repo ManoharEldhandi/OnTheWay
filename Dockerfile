@@ -13,7 +13,7 @@ FROM eclipse-temurin:17-jre
 WORKDIR /app
 # Run as a non-root user.
 RUN useradd -r -u 1001 appuser
-COPY --from=build /app/target/ontheway-backend-1.0.0.jar app.jar
+COPY --from=build /app/target/OnTheWay-1.0.0.jar app.jar
 USER appuser
 EXPOSE 8080
 ENV JAVA_OPTS=""

@@ -52,7 +52,7 @@ export function LoginPage() {
           <span className="login-mark" />
           <div className="brand" style={{ fontSize: 24 }}>On<span>The</span>Way</div>
         </div>
-        <span className="kicker">Route-aware pickup platform</span>
+        <span className="kicker">Route-Aware Pickup & Reservation Platform</span>
         <p className="sub">Three dashboards. One ETA engine. Real marketplace controls.</p>
 
         <form className="col" onSubmit={submit}>

@@ -6,10 +6,10 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.ontheway</groupId>
-    <artifactId>ontheway-backend</artifactId>
+    <artifactId>OnTheWay</artifactId>
     <version>1.0.0</version>
-    <name>OnTheWay Backend</name>
-    <description>Navigation-driven ordering platform backend</description>
+    <name>OnTheWay</name>
+    <description>Route-Aware Pickup &amp; Reservation Platform</description>
     <packaging>jar</packaging>
 
     <properties>

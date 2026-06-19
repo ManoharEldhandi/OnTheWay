@@ -8,7 +8,7 @@ the end-to-end demo a reviewer can actually use.
 ```bash
 # 1) Backend (zero setup, in-memory, seeded)
 mvn -s custom-m2/settings.xml spring-boot:run -Dspring-boot.run.profiles=demo
-# or: SPRING_PROFILES_ACTIVE=demo java -jar target/ontheway-backend-1.0.0.jar
+# or: SPRING_PROFILES_ACTIVE=demo java -jar target/OnTheWay-1.0.0.jar
 
 # 2) Frontend (proxies /api -> :8080)
 cd frontend

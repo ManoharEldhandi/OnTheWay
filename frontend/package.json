@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "OnTheWay — web client (customer + merchant)",
+  "description": "OnTheWay — Route-Aware Pickup & Reservation Platform",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",

@@ -79,7 +79,7 @@ graph TB
     M --> FE
     A --> FE
 
-    FE -->|REST / JWT, role-scoped| BE[OnTheWay Backend<br/>Spring Boot modular monolith]
+    FE -->|REST / JWT, role-scoped| BE[OnTheWay<br/>Spring Boot modular monolith]
 
     BE --> DB[(MySQL · H2 for test/demo)]
     BE --> RP{{Route/ETA Provider<br/>Mock · Google · Mapbox · OSRM}}

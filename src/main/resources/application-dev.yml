@@ -22,4 +22,4 @@ spring:
 
 logging:
   file:
-    name: logs/ontheway-backend.log
+    name: logs/OnTheWay.log

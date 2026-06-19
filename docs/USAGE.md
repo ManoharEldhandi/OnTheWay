@@ -44,7 +44,7 @@ Or run the packaged jar:
 
 ```bash
 mvn -s custom-m2/settings.xml -DskipTests package
-SPRING_PROFILES_ACTIVE=demo java -jar target/ontheway-backend-1.0.0.jar
+SPRING_PROFILES_ACTIVE=demo java -jar target/OnTheWay-1.0.0.jar
 ```
 
 - The backend starts on **http://localhost:8080**.
