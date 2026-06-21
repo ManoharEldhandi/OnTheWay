@@ -47,6 +47,10 @@ node_modules/
 dist/
 .vite/
 
+# Maven local repository (keep custom-m2/settings.xml, ignore downloaded deps)
+.m2/
+custom-m2/repository/
+
 # Private planning / internal docs
 /to-do.md
 /Idea & Documentation/
