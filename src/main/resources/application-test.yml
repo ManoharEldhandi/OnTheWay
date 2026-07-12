@@ -36,6 +36,12 @@ ontheway:
     provider: mock
   route:
     provider: mock
+  messaging:
+    kafka:
+      enabled: false
+  search:
+    elasticsearch:
+      enabled: false
 
 logging:
   level:

@@ -1,0 +1,19 @@
+type Query {
+  catalogSearch(query: String!, limit: Int = 20): [CatalogItem!]!
+  catalogSearchBackend: String!
+}
+
+type Mutation {
+  reindexCatalog: String!
+}
+
+type CatalogItem {
+  itemId: ID!
+  name: String!
+  shopId: ID!
+  shopName: String!
+  vertical: String!
+  price: Float
+  currency: String
+  available: Boolean!
+}

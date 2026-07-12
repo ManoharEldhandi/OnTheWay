@@ -1,0 +1,45 @@
+# Optional event/search platform overlay:
+# docker compose -f docker-compose.yml -f docker-compose.platform.yml up --build
+services:
+  kafka:
+    image: bitnami/kafka:3.7
+    environment:
+      KAFKA_CFG_NODE_ID: 1
+      KAFKA_CFG_PROCESS_ROLES: broker,controller
+      KAFKA_CFG_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_CFG_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CFG_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CFG_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      ALLOW_PLAINTEXT_LISTENER: "yes"
+    ports:
+      - "9092:9092"
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.13.4
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      ES_JAVA_OPTS: -Xms512m -Xmx512m
+    ports:
+      - "9200:9200"
+    volumes:
+      - ontheway-search:/usr/share/elasticsearch/data
+
+  backend:
+    depends_on:
+      kafka:
+        condition: service_started
+      elasticsearch:
+        condition: service_started
+    environment:
+      KAFKA_ENABLED: "true"
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_ORDER_TOPIC: ontheway.order-events
+      ELASTICSEARCH_ENABLED: "true"
+      ELASTICSEARCH_URIS: http://elasticsearch:9200
+      GRAPHQL_GRAPHIQL_ENABLED: "true"
+
+volumes:
+  ontheway-search:

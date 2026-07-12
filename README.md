@@ -67,6 +67,23 @@ Health: http://localhost:8080/actuator/health
 
 For full setup, configuration, and a guided walkthrough, see [docs/USAGE.md](docs/USAGE.md).
 
+### Option C — event-driven search platform (Kafka + Elasticsearch)
+
+The optional platform overlay preserves MySQL as the transactional source of truth while adding
+Kafka for keyed order events and Elasticsearch for indexed catalog search:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.platform.yml up --build
+# GraphQL → POST http://localhost:8080/graphql
+# Kafka   → localhost:9092 (topic: ontheway.order-events)
+# Search  → Elasticsearch at localhost:9200
+```
+
+GraphQL exposes authenticated catalog search and an admin-only reindex mutation. If the optional
+services are disabled, the same GraphQL contract falls back to MySQL/JPA, which keeps local tests
+and zero-infrastructure demos deterministic. Kubernetes manifests and deployment guidance live in
+[k8s/README.md](k8s/README.md).
+
 ---
 
 ## What works today
@@ -86,14 +103,19 @@ For full setup, configuration, and a guided walkthrough, see [docs/USAGE.md](doc
 - **Ordering**: server-authoritative validation, a real status **state machine**
   (`PLACED → PREPARING → READY → PICKED`, `→ CANCELLED`), and an immutable audit trail.
 - **Payments**: a gateway abstraction with a keyless mock provider by default, plus Stripe and
-  Razorpay adapters, webhook verification, refunds, and ownership-checked flows.
+  Razorpay adapters, idempotency controls, signed-webhook verification, refunds, minor currency
+  units, ownership-checked flows, and traceable payment/order state transitions.
+- **GraphQL + Elasticsearch**: authenticated catalog queries over item, shop, and vertical fields;
+  admin-controlled reindexing from the relational source of truth; MySQL fallback by configuration.
+- **Kafka event stream**: order placement, status, and ETA events are keyed by order ID for ordered,
+  replayable downstream risk monitoring, operational analytics, and control evidence.
 - **Catalog**: stores (with geo + prep time) and menu items across **16 verticals** (restaurant,
   pharmacy, grocery, café, hotel, electronics, …).
 - **Web app**: role-aware routing → vertical picker + search + map → menu → cart → ETA checkout →
   live tracking; merchant & admin consoles; a Swiss, grid-driven black/white/yellow interface.
 - **Engineering**: Flyway migrations, profiles (`dev`/`test`/`prod`/`demo`), externalized
   secrets, a hermetic test suite (H2 + real migrations) **plus a real-MySQL migration test**
-  (Testcontainers), a 1,000-user load test, Docker + CI.
+  (Testcontainers), a **72-test suite**, a 1,000-user load test, Docker, Kubernetes + CI.
 
 ---
 
@@ -101,10 +123,10 @@ For full setup, configuration, and a guided walkthrough, see [docs/USAGE.md](doc
 
 | Layer | Technology |
 |---|---|
-| Backend | Java 17, Spring Boot 3.2, Spring Security (JWT), Spring Data JPA |
-| Database | MySQL (dev/prod), H2 (test/demo), **Flyway** migrations |
+| Backend | Java 17, Spring Boot 3.2, REST + GraphQL, Spring Security (JWT), Spring Data JPA |
+| Data & messaging | MySQL, Elasticsearch, Kafka, WebSockets, **Flyway** migrations |
 | Frontend | React 18, TypeScript, Vite |
-| Tooling | Maven, JUnit 5, Mockito, MockMvc, Docker, GitHub Actions |
+| Tooling | Maven, JUnit 5, Mockito, MockMvc, Docker, Kubernetes, GitHub Actions |
 
 ---
 
@@ -119,13 +141,16 @@ For full setup, configuration, and a guided walkthrough, see [docs/USAGE.md](doc
 │   ├── controller/  service/  repository/  model/  dto/  exception/  security/
 │   ├── fulfillment/        # RouteProvider + ETA engine + scheduler (the differentiator)
 │   ├── payment/            # PaymentGateway abstraction + mock provider
+│   ├── realtime/           # WebSocket broadcasts + optional Kafka order-event publisher
+│   ├── search/             # Elasticsearch search + relational fallback
 │   └── config/             # CORS, Swagger, app beans, demo seeder
 ├── src/main/resources/
 │   ├── application*.yml     # profile configuration
 │   └── db/migration/        # Flyway V1..V8 migrations for lifecycle, auth, and money canonicalization
 ├── src/test/java/...        # unit, slice, integration, and load tests
 ├── frontend/                # React + TS + Vite web client
-├── Dockerfile  docker-compose.yml  .github/workflows/ci.yml
+├── k8s/                     # Kubernetes deployment, services, config, and secret example
+├── Dockerfile  docker-compose*.yml  .github/workflows/ci.yml
 └── pom.xml
 ```
 
