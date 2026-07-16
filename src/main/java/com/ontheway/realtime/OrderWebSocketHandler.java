@@ -52,6 +52,16 @@ public class OrderWebSocketHandler extends TextWebSocketHandler {
     }
 
     private boolean canReceive(WebSocketSession session, OrderRealtimeEvent event) {
+        Object expiresAt = session.getAttributes().get(OrderWebSocketAuthInterceptor.TOKEN_EXPIRES_AT);
+        if (!(expiresAt instanceof Long expiry) || expiry <= System.currentTimeMillis()) {
+            sessions.remove(session);
+            try {
+                session.close(CloseStatus.POLICY_VIOLATION.withReason("Access token expired"));
+            } catch (Exception ignored) {
+                // The session is already unusable; removing it is sufficient.
+            }
+            return false;
+        }
         Object role = session.getAttributes().get(OrderWebSocketAuthInterceptor.ROLE);
         Object userId = session.getAttributes().get(OrderWebSocketAuthInterceptor.USER_ID);
         if (!(userId instanceof Long id) || !(role instanceof String roleName)) {

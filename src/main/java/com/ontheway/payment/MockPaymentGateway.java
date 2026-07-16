@@ -15,6 +15,11 @@ import java.util.UUID;
 public class MockPaymentGateway implements PaymentGateway {
 
     @Override
+    public String name() {
+        return "mock";
+    }
+
+    @Override
     public ChargeResult charge(Long orderId, double amount, String method, String idempotencyKey) {
         boolean success = amount > 0;
         String reference = "mock_" + UUID.randomUUID().toString().replace("-", "").substring(0, 16);

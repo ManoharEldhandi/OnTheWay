@@ -16,7 +16,6 @@ spring:
     hibernate:
       ddl-auto: none
     show-sql: false
-    database-platform: org.hibernate.dialect.H2Dialect
   flyway:
     enabled: true
     baseline-on-migrate: true

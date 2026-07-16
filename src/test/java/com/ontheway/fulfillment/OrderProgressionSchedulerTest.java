@@ -5,6 +5,7 @@ import com.ontheway.model.OrderEvent;
 import com.ontheway.model.enums.OrderStatus;
 import com.ontheway.repository.OrderEventRepository;
 import com.ontheway.repository.OrderRepository;
+import com.ontheway.realtime.OrderRealtimeNotifier;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -27,11 +28,12 @@ class OrderProgressionSchedulerTest {
 
     @Mock private OrderRepository orderRepository;
     @Mock private OrderEventRepository orderEventRepository;
+    @Mock private OrderRealtimeNotifier realtimeNotifier;
 
     private final Clock clock = Clock.fixed(Instant.parse("2026-01-01T12:00:00Z"), ZoneOffset.UTC);
 
     private OrderProgressionScheduler scheduler() {
-        return new OrderProgressionScheduler(orderRepository, orderEventRepository, clock);
+        return new OrderProgressionScheduler(orderRepository, orderEventRepository, realtimeNotifier, clock);
     }
 
     @Test
@@ -52,6 +54,7 @@ class OrderProgressionSchedulerTest {
         assertThat(ev.getValue().getFromStatus()).isEqualTo(OrderStatus.PLACED);
         assertThat(ev.getValue().getToStatus()).isEqualTo(OrderStatus.PREPARING);
         assertThat(ev.getValue().getChangedBy()).isEqualTo("system:scheduler");
+        verify(realtimeNotifier).publish("ORDER_STATUS_CHANGED", due);
     }
 
     @Test
@@ -64,5 +67,6 @@ class OrderProgressionSchedulerTest {
         assertThat(advanced).isZero();
         verify(orderRepository, never()).save(any());
         verify(orderEventRepository, never()).save(any());
+        verifyNoInteractions(realtimeNotifier);
     }
 }

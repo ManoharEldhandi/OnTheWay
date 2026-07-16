@@ -32,6 +32,7 @@ the expected arrival so the order is fresh, not early-and-cold or late-and-queue
 ### Configuration (per deployment)
 | Property | Env var | Default | Meaning |
 | --- | --- | --- | --- |
+| `ontheway.eta.scheduler-enabled` | `ETA_SCHEDULER_ENABLED` | `true` | Enables automatic `PLACED` → `PREPARING` progression. Disable for deterministic test runs. |
 | `ontheway.eta.traffic-factor` | `ETA_TRAFFIC_FACTOR` | `0.25` | Fraction of travel time added as uncertainty (window half-width). |
 | `ontheway.eta.min-traffic-buffer-mins` | `ETA_MIN_TRAFFIC_BUFFER_MINS` | `3` | Floor for the buffer, so even short trips get a small cushion. |
 

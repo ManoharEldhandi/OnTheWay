@@ -10,8 +10,8 @@ A `PaymentGateway` abstraction (mirrors the `RouteProvider` pattern):
 - **`MockPaymentGateway`** (default, `ontheway.payment.provider=mock`): keyless, deterministic;
   approves any positive charge and returns a synthetic reference. Lets the whole order→pay
   flow be demoed and tested with no credentials.
-- Real **Stripe** / **Razorpay** implementations (SDKs already on the classpath) can be added
-  behind the same interface and selected by config — no caller changes.
+- **Stripe** and **Razorpay** adapters are included behind the same interface and selected by
+  configuration — no caller changes.
 
 ```
 POST /api/payments  { orderId, paymentMethod }
@@ -27,8 +27,11 @@ POST /api/payments  { orderId, paymentMethod }
 - The **gateway** decides the outcome; the client can never set payment status.
 - **Amount** comes from the order total, not the request.
 - **Idempotency**: an order has at most one payment; a second attempt returns `409 Conflict`
-  (an idempotency key is passed to the gateway for retry safety).
+  (creation is serialized per order and an idempotency key is passed to the gateway).
 - **Ownership**: only the order's owner may pay; others get `403`.
+- **Monotonic state**: delayed webhooks cannot regress a completed or refunded payment.
+- **Signed webhooks**: the route provider must match the configured gateway before its signature
+  and payload are processed.
 
 ## Data model
 
@@ -47,18 +50,15 @@ a **payment badge** (e.g. `COMPLETED · via mock`).
 | `PaymentServiceImplTest` | Gateway charge → COMPLETED; decline → FAILED; idempotency → 409; non-owner → 403. |
 | `PaymentIntegrationTest` | End-to-end pay → COMPLETED via mock; second charge → 409; non-owner → 403. |
 
-45 backend tests pass hermetically.
-
 ## Configuration
 
 ```
 ontheway.payment.provider=mock        # mock | stripe | razorpay
 ontheway.payment.stripe.apikey=...
+ontheway.payment.stripe.webhook-secret=...
 ontheway.payment.razorpay.apikey=...
+ontheway.payment.razorpay.apisecret=...
 ```
 
-## Not yet (tracked in to-do.md)
-- Real Stripe/Razorpay gateway implementations.
-- Webhook endpoint with signature verification (asynchronous confirmation).
-- Refunds wired to order cancellation.
-- Money as `BigDecimal` minor units + currency.
+Canonical minor-unit and currency fields are persisted alongside legacy decimal fields for API
+compatibility. Refunds are admin-controlled and supported by each included gateway.

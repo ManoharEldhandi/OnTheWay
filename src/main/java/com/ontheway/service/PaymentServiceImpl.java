@@ -21,9 +21,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Locale;
 
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class PaymentServiceImpl implements PaymentService {
     private final PaymentRepository paymentRepository;
     private final OrderRepository orderRepository;
@@ -34,7 +36,9 @@ public class PaymentServiceImpl implements PaymentService {
     @Transactional
     @Override
     public PaymentResponseDTO createPayment(PaymentCreateDTO dto, String callerEmail) {
-        Order order = orderRepository.findById(dto.getOrderId())
+        // Serialize payment creation per order. The database unique constraint remains the
+        // final guard, while this lock prevents two requests from reaching the gateway.
+        Order order = orderRepository.findByIdForUpdate(dto.getOrderId())
                 .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
         assertOwnsOrder(order, callerEmail);
 
@@ -79,8 +83,10 @@ public class PaymentServiceImpl implements PaymentService {
     public void updatePaymentStatus(Long paymentId, String status) {
         Payment payment = paymentRepository.findById(paymentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Payment not found"));
-        payment.setPaymentStatus(PaymentStatus.valueOf(status));
-        paymentRepository.save(payment);
+        PaymentStatus next = parseStatus(status);
+        if (applyStatus(payment, next)) {
+            paymentRepository.save(payment);
+        }
     }
 
     @Transactional
@@ -91,8 +97,16 @@ public class PaymentServiceImpl implements PaymentService {
         if (payment.getPaymentStatus() != PaymentStatus.COMPLETED) {
             throw new BadRequestException("Only completed payments can be refunded");
         }
-        boolean refunded = paymentGateway.refund(payment.getOrder().getOrderId(),
-                payment.getGatewayReference(), payment.getAmount(), "refund-" + paymentId);
+        if (!paymentGateway.name().equalsIgnoreCase(payment.getGateway())) {
+            throw new ConflictException("The configured payment gateway cannot refund this payment");
+        }
+        boolean refunded;
+        try {
+            refunded = paymentGateway.refund(payment.getOrder().getOrderId(),
+                    payment.getGatewayReference(), payment.getAmount(), "refund-" + paymentId);
+        } catch (UnsupportedOperationException ex) {
+            throw new BadRequestException("Refunds are not supported by this payment gateway");
+        }
         if (!refunded) {
             throw new BadRequestException("Payment gateway rejected the refund");
         }
@@ -104,27 +118,42 @@ public class PaymentServiceImpl implements PaymentService {
     @Transactional
     @Override
     public void handleWebhook(String gateway, String payload, String signature) {
+        String normalizedGateway = gateway == null ? "" : gateway.trim().toLowerCase(Locale.ROOT);
+        if (!paymentGateway.name().equals(normalizedGateway)) {
+            throw new BadRequestException("Webhook gateway does not match the configured provider");
+        }
         if (!paymentGateway.verifyWebhook(payload, signature)) {
             throw new ForbiddenException("Invalid payment webhook signature");
         }
+        JsonNode root;
         try {
-            JsonNode root = objectMapper.readTree(payload);
-            String reference = referenceFromWebhook(gateway, root);
-            if (reference == null || reference.isBlank()) {
-                return;
-            }
-            Payment payment = paymentRepository.findByGatewayAndGatewayReference(gateway, reference)
-                    .orElse(null);
-            if (payment == null) {
-                return;
-            }
-            PaymentStatus next = statusFromWebhook(root);
-            if (next != null) {
-                payment.setPaymentStatus(next);
-                paymentRepository.save(payment);
-            }
+            root = objectMapper.readTree(payload);
         } catch (Exception ex) {
             throw new BadRequestException("Invalid payment webhook payload");
+        }
+        if (root == null || !root.isObject()) {
+            throw new BadRequestException("Invalid payment webhook payload");
+        }
+
+        String reference = referenceFromWebhook(normalizedGateway, root);
+        if (reference == null || reference.isBlank()) {
+            return;
+        }
+        Payment payment = paymentRepository.findByGatewayAndGatewayReference(normalizedGateway, reference)
+                .orElse(null);
+        if (payment == null) {
+            return;
+        }
+        PaymentStatus next = statusFromWebhook(root);
+        if (next != null && canApplyStatus(payment.getPaymentStatus(), next)) {
+            payment.setPaymentStatus(next);
+            if ("razorpay".equals(normalizedGateway) && next == PaymentStatus.COMPLETED) {
+                String paymentReference = razorpayPaymentReference(root);
+                if (paymentReference != null && !paymentReference.isBlank()) {
+                    payment.setGatewayReference(paymentReference);
+                }
+            }
+            paymentRepository.save(payment);
         }
     }
 
@@ -176,11 +205,20 @@ public class PaymentServiceImpl implements PaymentService {
         }
         JsonNode object = root.path("data").path("object");
         if ("stripe".equalsIgnoreCase(gateway)) {
+            String type = webhookType(root);
+            if (type.contains("refund")) {
+                return object.path("payment_intent").asText(null);
+            }
             return object.path("id").asText(null);
         }
         if ("razorpay".equalsIgnoreCase(gateway)) {
             JsonNode payment = root.path("payload").path("payment").path("entity");
-            String paymentId = payment.path("id").asText(null);
+            String orderId = payment.path("order_id").asText(null);
+            if (orderId != null && !orderId.isBlank()) {
+                return orderId;
+            }
+            JsonNode refund = root.path("payload").path("refund").path("entity");
+            String paymentId = refund.path("payment_id").asText(null);
             return paymentId != null ? paymentId : object.path("id").asText(null);
         }
         return object.path("id").asText(null);
@@ -188,9 +226,9 @@ public class PaymentServiceImpl implements PaymentService {
 
     private PaymentStatus statusFromWebhook(JsonNode root) {
         if (root.hasNonNull("status")) {
-            return PaymentStatus.valueOf(root.get("status").asText().trim().toUpperCase());
+            return parseStatus(root.get("status").asText());
         }
-        String type = root.path("type").asText(root.path("event").asText(""));
+        String type = webhookType(root);
         if (type.contains("refund")) {
             return PaymentStatus.REFUNDED;
         }
@@ -201,5 +239,50 @@ public class PaymentServiceImpl implements PaymentService {
             return PaymentStatus.FAILED;
         }
         return null;
+    }
+
+    private String webhookType(JsonNode root) {
+        return root.path("type").asText(root.path("event").asText(""))
+                .trim().toLowerCase(Locale.ROOT);
+    }
+
+    private String razorpayPaymentReference(JsonNode root) {
+        return root.path("payload").path("payment").path("entity").path("id").asText(null);
+    }
+
+    private PaymentStatus parseStatus(String value) {
+        if (value == null || value.isBlank()) {
+            throw new BadRequestException("Payment status is required");
+        }
+        try {
+            return PaymentStatus.valueOf(value.trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException ex) {
+            throw new BadRequestException("Unknown payment status: " + value);
+        }
+    }
+
+    /**
+     * Applies monotonic payment-state changes. Completed/refunded events must never be
+     * overwritten by a delayed pending or failed webhook.
+     */
+    private boolean applyStatus(Payment payment, PaymentStatus next) {
+        PaymentStatus current = payment.getPaymentStatus();
+        if (current == next) {
+            return false;
+        }
+        if (!canApplyStatus(current, next)) {
+            throw new ConflictException("Cannot change payment status from " + current + " to " + next);
+        }
+        payment.setPaymentStatus(next);
+        return true;
+    }
+
+    private boolean canApplyStatus(PaymentStatus current, PaymentStatus next) {
+        return switch (next) {
+            case PENDING -> false;
+            case FAILED -> current == PaymentStatus.PENDING;
+            case COMPLETED -> current == PaymentStatus.PENDING || current == PaymentStatus.FAILED;
+            case REFUNDED -> current == PaymentStatus.PENDING || current == PaymentStatus.COMPLETED;
+        };
     }
 }

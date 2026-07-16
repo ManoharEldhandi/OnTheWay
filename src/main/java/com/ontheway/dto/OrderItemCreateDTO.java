@@ -7,6 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 
 @Data
@@ -21,5 +22,6 @@ public class OrderItemCreateDTO {
     @JsonProperty("quantity")
     @NotNull(message = "Quantity is required")
     @Min(value = 1, message = "Quantity must be at least 1")
+    @Max(value = 1000, message = "Quantity must be at most 1000")
     private Integer quantity;
 }

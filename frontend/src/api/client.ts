@@ -2,6 +2,7 @@
 
 const TOKEN_KEY = 'ontheway.token';
 const REFRESH_TOKEN_KEY = 'ontheway.refreshToken';
+let refreshPromise: Promise<boolean> | null = null;
 
 export function getToken(): string | null {
   return localStorage.getItem(TOKEN_KEY);
@@ -41,15 +42,17 @@ export class ApiError extends Error {
 }
 
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
-  const res = await rawRequest(method, path, body);
+  let res = await rawRequest(method, path, body);
   if (res.status === 401 && !path.startsWith('/api/auth/') && await refreshAccessToken()) {
-    return parseResponse<T>(await rawRequest(method, path, body));
+    res = await rawRequest(method, path, body);
+    if (res.status === 401) clearAuthTokens();
   }
   return parseResponse<T>(res);
 }
 
 async function rawRequest(method: string, path: string, body?: unknown): Promise<Response> {
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  const headers: Record<string, string> = { Accept: 'application/json' };
+  if (body !== undefined) headers['Content-Type'] = 'application/json';
   const token = getToken();
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
@@ -64,16 +67,41 @@ async function parseResponse<T>(res: Response): Promise<T> {
   if (res.status === 204) return undefined as T;
 
   const text = await res.text();
-  const data = text ? JSON.parse(text) : undefined;
+  let data: unknown;
+  if (text) {
+    const contentType = res.headers.get('content-type') ?? '';
+    if (contentType.includes('json')) {
+      try {
+        data = JSON.parse(text);
+      } catch {
+        throw new ApiError(res.status, 'The server returned an invalid JSON response');
+      }
+    } else {
+      data = text;
+    }
+  }
 
   if (!res.ok) {
-    const message = data?.message ?? `Request failed (${res.status})`;
+    const message = typeof data === 'object' && data !== null && 'message' in data
+      ? String(data.message)
+      : typeof data === 'string' && data.trim()
+        ? data
+        : `Request failed (${res.status})`;
     throw new ApiError(res.status, message);
   }
   return data as T;
 }
 
-async function refreshAccessToken(): Promise<boolean> {
+export async function refreshAccessToken(): Promise<boolean> {
+  if (!refreshPromise) {
+    refreshPromise = performTokenRefresh().finally(() => {
+      refreshPromise = null;
+    });
+  }
+  return refreshPromise;
+}
+
+async function performTokenRefresh(): Promise<boolean> {
   const refreshToken = getRefreshToken();
   if (!refreshToken) return false;
   const res = await fetch('/api/auth/refresh', {
@@ -85,7 +113,11 @@ async function refreshAccessToken(): Promise<boolean> {
     clearAuthTokens();
     return false;
   }
-  const data = await res.json() as { accessToken: string; refreshToken: string };
+  const data = await parseResponse<{ accessToken: string; refreshToken: string }>(res);
+  if (!data.accessToken || !data.refreshToken) {
+    clearAuthTokens();
+    return false;
+  }
   setToken(data.accessToken);
   setRefreshToken(data.refreshToken);
   return true;

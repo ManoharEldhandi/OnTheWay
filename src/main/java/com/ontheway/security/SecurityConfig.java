@@ -21,7 +21,7 @@ import org.springframework.web.cors.CorsConfigurationSource;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
-        private final AuthRateLimitFilter authRateLimitFilter;
+    private final AuthRateLimitFilter authRateLimitFilter;
     private final CustomUserDetailsService userDetailsService;
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
 
@@ -45,6 +45,7 @@ public class SecurityConfig {
                                 "/api/auth/**", "/api/v1/auth/**",
                                 "/api/payments/webhook/**", "/api/v1/payments/webhook/**", "/ws/**"
                         ).permitAll()
+                        .requestMatchers("/actuator/**").hasRole("ADMIN")
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/merchant/**").hasRole("MERCHANT")

@@ -18,6 +18,7 @@ public class UserCreateDTO {
     @JsonProperty("email")
     @Email(message = "Email must be valid")
     @NotBlank(message = "Email is required")
+    @Size(max = 100, message = "Email must be at most 100 characters")
     private String email;
 
     @JsonProperty("password")
@@ -27,6 +28,7 @@ public class UserCreateDTO {
 
     @JsonProperty("name")
     @NotBlank(message = "Name is required")
+    @Size(max = 100, message = "Name must be at most 100 characters")
     private String name;
 
     // Optional at registration. ADMIN is never accepted here; null defaults to USER.

@@ -32,7 +32,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (header != null && header.startsWith("Bearer ")) {
             String token = header.substring(7);
             // Validate signature + expiry FIRST; only then trust the claims.
-            if (jwtTokenProvider.validateToken(token)
+            if (jwtTokenProvider.validateAccessToken(token)
                     && SecurityContextHolder.getContext().getAuthentication() == null) {
                 try {
                     String username = jwtTokenProvider.getUsernameFromJWT(token);

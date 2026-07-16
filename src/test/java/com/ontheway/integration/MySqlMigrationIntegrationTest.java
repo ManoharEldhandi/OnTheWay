@@ -23,7 +23,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Verifies that the real Flyway migrations (V1–V6) apply cleanly to a real <b>MySQL</b> database —
+ * Verifies that the real Flyway migrations (V1–V8) apply cleanly to a real <b>MySQL</b> database —
  * not just the H2 MySQL-compatibility mode used by the fast test suite. This is the production
  * database engine, so it is the authoritative check that the dialect-specific V6 migration
  * (which drops the one-shop-per-user uniqueness) behaves on MySQL.
@@ -49,7 +49,6 @@ class MySqlMigrationIntegrationTest {
         registry.add("spring.datasource.username", MYSQL::getUsername);
         registry.add("spring.datasource.password", MYSQL::getPassword);
         registry.add("spring.datasource.driver-class-name", MYSQL::getDriverClassName);
-        registry.add("spring.jpa.database-platform", () -> "org.hibernate.dialect.MySQLDialect");
     }
 
     @Autowired private UserRepository userRepository;
@@ -57,7 +56,7 @@ class MySqlMigrationIntegrationTest {
 
     @Test
     void migrationsApplyOnMySql_andOneOwnerCanHoldMultipleShops() {
-        // If the context started, all six migrations applied on real MySQL.
+        // If the context started, all eight migrations applied on real MySQL.
         User owner = userRepository.save(User.builder()
                 .name("Multi Owner").email("mysql-owner@x.com")
                 .password("x").role(UserRole.MERCHANT).build());

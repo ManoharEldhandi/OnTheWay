@@ -49,14 +49,14 @@ class JpaCatalogSearchServiceTest {
 
     @Test
     void reindexReportsRelationalSourceOfTruthSize() {
-        when(menuItemRepository.findByAvailabilityTrue()).thenReturn(List.of(
+        when(menuItemRepository.findSearchableItems(MerchantStatus.APPROVED)).thenReturn(List.of(
                 MenuItem.builder().menuItemId(1L).build(),
                 MenuItem.builder().menuItemId(2L).build()));
 
         long searchable = new JpaCatalogSearchService(menuItemRepository).reindex();
 
         assertThat(searchable).isEqualTo(2L);
-        verify(menuItemRepository).findByAvailabilityTrue();
+        verify(menuItemRepository).findSearchableItems(MerchantStatus.APPROVED);
     }
 
     @Test

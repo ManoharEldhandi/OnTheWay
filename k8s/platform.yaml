@@ -18,6 +18,9 @@ data:
   ELASTICSEARCH_ENABLED: "true"
   ELASTICSEARCH_URIS: http://elasticsearch:9200
   CORS_ALLOWED_ORIGINS: https://ontheway.example.com
+  PAYMENT_PROVIDER: mock
+  SWAGGER_ENABLED: "false"
+  ONTHEWAY_ADMIN_NAME: Administrator
 ---
 apiVersion: v1
 kind: Secret
@@ -28,6 +31,8 @@ type: Opaque
 stringData:
   DB_PASSWORD: replace-before-deploy
   JWT_SECRET: replace-with-a-long-random-secret-before-deploy
+  ONTHEWAY_ADMIN_EMAIL: admin@example.com
+  ONTHEWAY_ADMIN_PASSWORD: replace-with-a-strong-admin-password
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -122,7 +127,7 @@ spec:
     spec:
       containers:
         - name: elasticsearch
-          image: docker.elastic.co/elasticsearch/elasticsearch:8.13.4
+          image: docker.elastic.co/elasticsearch/elasticsearch:8.18.8
           ports: [{ containerPort: 9200 }]
           env:
             - { name: discovery.type, value: single-node }
@@ -148,7 +153,9 @@ metadata:
   name: backend
   namespace: ontheway
 spec:
-  replicas: 2
+  # WebSocket sessions and the ETA scheduler are process-local. Keep one replica until
+  # a shared WebSocket broker and distributed scheduler lock are configured.
+  replicas: 1
   selector:
     matchLabels: { app: ontheway-backend }
   template:
@@ -166,6 +173,10 @@ spec:
               valueFrom: { secretKeyRef: { name: ontheway-secrets, key: DB_PASSWORD } }
             - name: JWT_SECRET
               valueFrom: { secretKeyRef: { name: ontheway-secrets, key: JWT_SECRET } }
+            - name: ONTHEWAY_ADMIN_EMAIL
+              valueFrom: { secretKeyRef: { name: ontheway-secrets, key: ONTHEWAY_ADMIN_EMAIL } }
+            - name: ONTHEWAY_ADMIN_PASSWORD
+              valueFrom: { secretKeyRef: { name: ontheway-secrets, key: ONTHEWAY_ADMIN_PASSWORD } }
           readinessProbe:
             httpGet: { path: /actuator/health/readiness, port: 8080 }
             initialDelaySeconds: 20

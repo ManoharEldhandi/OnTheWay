@@ -36,9 +36,8 @@ public class DiscoveryController {
             @RequestParam(value = "radiusKm", defaultValue = "5") double radiusKm,
             @RequestParam(value = "category", required = false) StoreType category) {
 
-        if (radiusKm <= 0 || radiusKm > MAX_RADIUS_KM) {
-            throw new BadRequestException("radiusKm must be between 0 and " + MAX_RADIUS_KM);
-        }
+        validateCoordinates(lat, lng);
+        validateRadius(radiusKm);
         return ResponseEntity.ok(discoveryService.findNearby(lat, lng, radiusKm, category));
     }
 
@@ -57,9 +56,29 @@ public class DiscoveryController {
             @RequestParam(value = "category", required = false) StoreType category,
             @RequestParam(value = "sort", defaultValue = "relevance") String sort) {
 
-        if (radiusKm <= 0 || radiusKm > MAX_RADIUS_KM) {
-            throw new BadRequestException("radiusKm must be between 0 and " + MAX_RADIUS_KM);
+        validateCoordinates(lat, lng);
+        validateRadius(radiusKm);
+        if (query != null && query.length() > 100) {
+            throw new BadRequestException("q must be at most 100 characters");
+        }
+        if (!List.of("relevance", "distance", "price").contains(sort.trim().toLowerCase())) {
+            throw new BadRequestException("sort must be one of relevance, distance, or price");
         }
         return ResponseEntity.ok(discoveryService.search(lat, lng, radiusKm, query, category, sort));
+    }
+
+    private void validateRadius(double radiusKm) {
+        if (!Double.isFinite(radiusKm) || radiusKm <= 0 || radiusKm > MAX_RADIUS_KM) {
+            throw new BadRequestException("radiusKm must be between 0 and " + MAX_RADIUS_KM);
+        }
+    }
+
+    private void validateCoordinates(double latitude, double longitude) {
+        if (!Double.isFinite(latitude) || latitude < -90 || latitude > 90) {
+            throw new BadRequestException("lat must be between -90 and 90");
+        }
+        if (!Double.isFinite(longitude) || longitude < -180 || longitude > 180) {
+            throw new BadRequestException("lng must be between -180 and 180");
+        }
     }
 }

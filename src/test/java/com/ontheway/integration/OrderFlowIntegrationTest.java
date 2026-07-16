@@ -2,8 +2,13 @@ package com.ontheway.integration;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ontheway.dto.*;
+import com.ontheway.fulfillment.OrderProgressionScheduler;
+import com.ontheway.model.Order;
+import com.ontheway.model.enums.OrderStatus;
 import com.ontheway.model.enums.StoreType;
 import com.ontheway.model.enums.UserRole;
+import com.ontheway.repository.OrderEventRepository;
+import com.ontheway.repository.OrderRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -15,6 +20,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -31,6 +37,9 @@ class OrderFlowIntegrationTest {
     @Autowired private MockMvc mockMvc;
     @Autowired private ObjectMapper objectMapper;
     @Autowired private com.ontheway.repository.MerchantRepository merchantRepository;
+    @Autowired private OrderRepository orderRepository;
+    @Autowired private OrderEventRepository orderEventRepository;
+    @Autowired private OrderProgressionScheduler orderProgressionScheduler;
 
     private String registerAndLogin(String email, UserRole role) throws Exception {
         UserCreateDTO reg = UserCreateDTO.builder()
@@ -94,6 +103,22 @@ class OrderFlowIntegrationTest {
                 .andReturn().getResponse().getContentAsString();
         long orderId = idFrom(orderBody, "orderId");
 
+        // Historical data is immutable: referenced catalog/account records cannot be deleted.
+        mockMvc.perform(delete("/api/menu-items/" + menuItemId)
+                        .header("Authorization", bearer(merchantToken)))
+                .andExpect(status().isConflict());
+        mockMvc.perform(delete("/api/merchant/shops/" + merchantId)
+                        .header("Authorization", bearer(merchantToken)))
+                .andExpect(status().isConflict());
+        String customerBody = mockMvc.perform(get("/api/users/me")
+                        .header("Authorization", bearer(customerToken)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        long customerId = idFrom(customerBody, "userId");
+        mockMvc.perform(delete("/api/users/" + customerId)
+                        .header("Authorization", bearer(customerToken)))
+                .andExpect(status().isConflict());
+
         // --- Owner can view the order ---
         mockMvc.perform(get("/api/orders/" + orderId).header("Authorization", bearer(customerToken)))
                 .andExpect(status().isOk());
@@ -145,5 +170,50 @@ class OrderFlowIntegrationTest {
         mockMvc.perform(post("/api/orders").header("Authorization", bearer(custToken))
                         .contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(bad)))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void schedulerAdvancesDueOrder_andPublishesWithLazyAssociationsLoaded() throws Exception {
+        String merchantToken = registerAndLogin("scheduler-merchant@x.com", UserRole.MERCHANT);
+        long merchantId = applyApprove(merchantToken, MerchantCreateDTO.builder()
+                .storeName("Scheduler Cafe").storeType(StoreType.CAFE)
+                .address("3 Test St").etaBufferMins(5).build());
+        long menuItemId = idFrom(mockMvc.perform(post("/api/menu-items/" + merchantId)
+                        .header("Authorization", bearer(merchantToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(MenuItemCreateDTO.builder()
+                                .name("Espresso").price(3.0).availability(true).build())))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString(), "menuItemId");
+
+        String customerToken = registerAndLogin("scheduler-customer@x.com", UserRole.USER);
+        String orderBody = mockMvc.perform(post("/api/orders")
+                        .header("Authorization", bearer(customerToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(OrderCreateDTO.builder()
+                                .merchantId(merchantId)
+                                .pickupTime(LocalDateTime.now().plusMinutes(30))
+                                .paymentMethod("CARD")
+                                .items(List.of(OrderItemCreateDTO.builder()
+                                        .menuItemId(menuItemId).quantity(1).build()))
+                                .build())))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        long orderId = idFrom(orderBody, "orderId");
+
+        Order order = orderRepository.findById(orderId).orElseThrow();
+        order.setPrepStartAt(LocalDateTime.now().minusMinutes(1));
+        orderRepository.saveAndFlush(order);
+
+        orderProgressionScheduler.tick();
+
+        assertThat(orderRepository.findById(orderId).orElseThrow().getStatus())
+                .isEqualTo(OrderStatus.PREPARING);
+        assertThat(orderEventRepository.findByOrderOrderIdOrderByCreatedAtAsc(orderId))
+                .anySatisfy(event -> {
+                    assertThat(event.getFromStatus()).isEqualTo(OrderStatus.PLACED);
+                    assertThat(event.getToStatus()).isEqualTo(OrderStatus.PREPARING);
+                    assertThat(event.getChangedBy()).isEqualTo("system:scheduler");
+                });
     }
 }

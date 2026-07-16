@@ -8,6 +8,8 @@ spring:
     active: ${SPRING_PROFILES_ACTIVE:dev}
   application:
     name: OnTheWay
+  jpa:
+    open-in-view: false
   jackson:
     serialization:
       INDENT_OUTPUT: true
@@ -25,6 +27,9 @@ spring:
   elasticsearch:
     uris: ${ELASTICSEARCH_URIS:http://localhost:9200}
   data:
+    web:
+      pageable:
+        max-page-size: 100
     elasticsearch:
       # This service uses ElasticsearchOperations directly; no repository proxy is required.
       repositories:
@@ -32,6 +37,7 @@ spring:
 
 server:
   port: ${SERVER_PORT:8080}
+  forward-headers-strategy: native
   error:
     include-message: always
 
@@ -49,6 +55,7 @@ ontheway:
     rate-limit:
       auth-requests-per-minute: ${AUTH_RATE_LIMIT:10}
   eta:
+    scheduler-enabled: ${ETA_SCHEDULER_ENABLED:true}
     average-speed-kmph: ${ETA_AVERAGE_SPEED_KMPH:30}
     safety-buffer-mins: ${ETA_SAFETY_BUFFER_MINS:5}
     traffic-factor: ${ETA_TRAFFIC_FACTOR:0.25}          # fraction of travel time added as traffic uncertainty (window half-width)
@@ -62,7 +69,7 @@ ontheway:
       apikey: ${RAZORPAY_API_KEY:}
       apisecret: ${RAZORPAY_API_SECRET:}
   route:
-    provider: ${ROUTE_PROVIDER:mock}     # mock | google | mapbox | osrm
+    provider: ${ROUTE_PROVIDER:mock}     # included adapter: mock (Haversine)
   messaging:
     kafka:
       enabled: ${KAFKA_ENABLED:false}
@@ -87,6 +94,9 @@ springdoc:
     tryItOutEnabled: true
 
 management:
+  health:
+    elasticsearch:
+      enabled: ${ELASTICSEARCH_ENABLED:false}
   endpoints:
     web:
       exposure:

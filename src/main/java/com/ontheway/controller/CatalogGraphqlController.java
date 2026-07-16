@@ -18,7 +18,10 @@ public class CatalogGraphqlController {
 
     @QueryMapping
     @PreAuthorize("hasAnyRole('USER','MERCHANT','ADMIN')")
-    public List<CatalogSearchResult> catalogSearch(@Argument String query, @Argument Integer limit) {
+    public List<CatalogSearchResult> catalogSearch(
+            @Argument("query") String query,
+            @Argument("limit") Integer limit
+    ) {
         return catalogSearchService.search(query, limit == null ? 20 : limit);
     }
 

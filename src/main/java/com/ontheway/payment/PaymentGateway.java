@@ -10,6 +10,9 @@ package com.ontheway.payment;
  */
 public interface PaymentGateway {
 
+    /** Stable lowercase provider name used in persisted records and webhook routes. */
+    String name();
+
     /**
      * Charge {@code amount} for the given order.
      *

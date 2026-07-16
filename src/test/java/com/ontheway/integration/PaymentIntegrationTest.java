@@ -148,9 +148,22 @@ class PaymentIntegrationTest {
                 .andExpect(status().isNoContent());
 
         String admin = adminToken("refund-admin@x.com");
+        mockMvc.perform(post("/api/payments/webhook/stripe")
+                        .header("X-Mock-Signature", "mock")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"gatewayReference\":\"" + reference + "\",\"status\":\"COMPLETED\"}"))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(put("/api/payments/" + paymentId + "/status")
+                        .header("Authorization", admin)
+                        .param("status", "successful"))
+                .andExpect(status().isBadRequest());
         mockMvc.perform(post("/api/payments/" + paymentId + "/refund").header("Authorization", admin))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.paymentStatus").value("REFUNDED"));
+        mockMvc.perform(put("/api/payments/" + paymentId + "/status")
+                        .header("Authorization", admin)
+                        .param("status", "COMPLETED"))
+                .andExpect(status().isConflict());
     }
 
     @Test

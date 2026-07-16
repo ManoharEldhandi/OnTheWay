@@ -5,6 +5,7 @@ import com.ontheway.model.OrderEvent;
 import com.ontheway.model.enums.OrderStatus;
 import com.ontheway.repository.OrderEventRepository;
 import com.ontheway.repository.OrderRepository;
+import com.ontheway.realtime.OrderRealtimeNotifier;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -26,10 +27,12 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 @Slf4j
+@Transactional
 public class OrderProgressionScheduler {
 
     private final OrderRepository orderRepository;
     private final OrderEventRepository orderEventRepository;
+    private final OrderRealtimeNotifier realtimeNotifier;
     private final Clock clock;
 
     /** Runs every 30 seconds in the background. */
@@ -45,12 +48,12 @@ public class OrderProgressionScheduler {
      * Moves every PLACED order whose {@code prepStartAt} has arrived into PREPARING,
      * recording an audit event. Returns the number of orders advanced.
      */
-    @Transactional
     public int advanceDueOrders() {
         LocalDateTime now = LocalDateTime.now(clock);
         List<Order> due = orderRepository
                 .findByStatusAndPrepStartAtLessThanEqual(OrderStatus.PLACED, now);
 
+        int advanced = 0;
         for (Order order : due) {
             if (order.getStatus().canTransitionTo(OrderStatus.PREPARING)) {
                 order.setStatus(OrderStatus.PREPARING);
@@ -62,8 +65,10 @@ public class OrderProgressionScheduler {
                         .changedBy("system:scheduler")
                         .reason("Auto-started preparation at scheduled prep time")
                         .build());
+                realtimeNotifier.publish("ORDER_STATUS_CHANGED", order);
+                advanced++;
             }
         }
-        return due.size();
+        return advanced;
     }
 }

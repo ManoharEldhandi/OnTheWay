@@ -25,7 +25,7 @@ public class JpaCatalogSearchService implements CatalogSearchService {
     public List<CatalogSearchResult> search(String query, int limit) {
         String normalized = query == null ? "" : query.trim();
         List<MenuItem> items = normalized.isEmpty()
-                ? menuItemRepository.findByAvailabilityTrue()
+                ? menuItemRepository.findSearchableItems(MerchantStatus.APPROVED)
                 : menuItemRepository.searchAvailableByItemOrShopName(MerchantStatus.APPROVED, normalized);
         return items.stream().limit(boundedLimit(limit)).map(JpaCatalogSearchService::toResult).toList();
     }
@@ -34,7 +34,7 @@ public class JpaCatalogSearchService implements CatalogSearchService {
     @Transactional(readOnly = true)
     public long reindex() {
         // The relational fallback is already the source of truth; report its searchable size.
-        return menuItemRepository.findByAvailabilityTrue().size();
+        return menuItemRepository.findSearchableItems(MerchantStatus.APPROVED).size();
     }
 
     @Override

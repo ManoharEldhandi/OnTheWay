@@ -13,6 +13,8 @@ import org.springframework.security.authentication.*;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Locale;
+
 @RestController
 @RequestMapping({"/api/auth", "/api/v1/auth"})
 @RequiredArgsConstructor
@@ -30,8 +32,9 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@Valid @RequestBody LoginRequest dto) {
+        String email = dto.getEmail().trim().toLowerCase(Locale.ROOT);
         Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(dto.getEmail(), dto.getPassword())
+                new UsernamePasswordAuthenticationToken(email, dto.getPassword())
         );
         String token = jwtTokenProvider.generateToken(authentication);
         String refreshToken = authTokenService.issueRefreshToken(authentication.getName());

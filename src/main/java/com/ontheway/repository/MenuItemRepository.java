@@ -10,7 +10,14 @@ import java.util.List;
 
 public interface MenuItemRepository extends JpaRepository<MenuItem, Long> {
     List<MenuItem> findByMerchantMerchantId(Long merchantId);
-    List<MenuItem> findByAvailabilityTrue();
+
+    @Query("""
+            SELECT mi FROM MenuItem mi
+            JOIN mi.merchant m
+            WHERE m.status = :status
+              AND mi.availability = true
+            """)
+    List<MenuItem> findSearchableItems(@Param("status") MerchantStatus status);
 
     /**
      * Available items at approved shops whose item name OR owning shop name contains the query

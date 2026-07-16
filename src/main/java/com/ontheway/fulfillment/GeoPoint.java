@@ -6,10 +6,10 @@ package com.ontheway.fulfillment;
 public record GeoPoint(double latitude, double longitude) {
 
     public GeoPoint {
-        if (latitude < -90 || latitude > 90) {
+        if (!Double.isFinite(latitude) || latitude < -90 || latitude > 90) {
             throw new IllegalArgumentException("latitude out of range: " + latitude);
         }
-        if (longitude < -180 || longitude > 180) {
+        if (!Double.isFinite(longitude) || longitude < -180 || longitude > 180) {
             throw new IllegalArgumentException("longitude out of range: " + longitude);
         }
     }

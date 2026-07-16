@@ -39,11 +39,6 @@ public class V6__shop_lifecycle extends BaseJavaMigration {
     }
 
     /**
-     * Finds and drops every unique constraint and unique index that covers {@code user_id} on the
-     * merchants table. Names are read from metadata so this does not depend on a hardcoded (and
-     * dialect-specific) generated name.
-     */
-    /**
      * Removes the uniqueness on {@code merchants.user_id}. On both H2 and MySQL the unique
      * constraint and the foreign key on {@code user_id} are served by the same (unique) index, so
      * simply dropping the unique constraint leaves a unique index behind. The portable sequence is:

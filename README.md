@@ -25,9 +25,9 @@ prepDuration = prepTime + safetyBuffer
 prepStartAt  = arrival − prepDuration   →  ready exactly on arrival
 ```
 
-Travel time comes from a pluggable `RouteProvider` (a keyless Haversine mock by default;
-Google/Mapbox/OSRM drop in via config), so the whole product runs and is tested with **no API
-keys**.
+Travel time comes from a pluggable `RouteProvider`. The included implementation is a keyless,
+deterministic Haversine adapter, and the interface can accept a Google/Mapbox/OSRM adapter without
+changing its callers.
 
 ---
 
@@ -115,7 +115,7 @@ and zero-infrastructure demos deterministic. Kubernetes manifests and deployment
   live tracking; merchant & admin consoles; a Swiss, grid-driven black/white/yellow interface.
 - **Engineering**: Flyway migrations, profiles (`dev`/`test`/`prod`/`demo`), externalized
   secrets, a hermetic test suite (H2 + real migrations) **plus a real-MySQL migration test**
-  (Testcontainers), a **72-test suite**, a 1,000-user load test, Docker, Kubernetes + CI.
+  (Testcontainers), regression and load coverage, Docker, Kubernetes + CI.
 
 ---
 
@@ -123,7 +123,7 @@ and zero-infrastructure demos deterministic. Kubernetes manifests and deployment
 
 | Layer | Technology |
 |---|---|
-| Backend | Java 17, Spring Boot 3.2, REST + GraphQL, Spring Security (JWT), Spring Data JPA |
+| Backend | Java 17, Spring Boot 3.5, REST + GraphQL, Spring Security (JWT), Spring Data JPA |
 | Data & messaging | MySQL, Elasticsearch, Kafka, WebSockets, **Flyway** migrations |
 | Frontend | React 18, TypeScript, Vite |
 | Tooling | Maven, JUnit 5, Mockito, MockMvc, Docker, Kubernetes, GitHub Actions |
@@ -159,7 +159,9 @@ and zero-infrastructure demos deterministic. Kubernetes manifests and deployment
 ## Build & test
 
 ```bash
-export JAVA_HOME="$(/usr/libexec/java_home -v 17 2>/dev/null || echo /opt/homebrew/opt/openjdk@17)"
+# If Java 17 is not already your default (Homebrew on Apple Silicon):
+export JAVA_HOME="/opt/homebrew/opt/openjdk@17"
+export PATH="$JAVA_HOME/bin:$PATH"
 mvn -s custom-m2/settings.xml clean test     # hermetic suite (no Docker/MySQL needed)
 cd frontend && npm run build                 # strict type-check + production bundle
 ```

@@ -1,6 +1,6 @@
 # OnTheWay — System Architecture
 
-> **Status:** v2.0 (product) · **Owner:** Manohar Eldhandi
+> **Status:** v2.1 (implemented product baseline) · **Owner:** Manohar Eldhandi
 > This document describes the architecture of OnTheWay as a multi-role product: a platform where
 > customers order from nearby shops while travelling and pick up on arrival, merchants run their
 > shops, and administrators operate the marketplace. The implementable breakdown lives in
@@ -37,9 +37,9 @@ ETAs in navigation and ride-hailing apps.
    Only approved, active shops are publicly discoverable.
 3. **Modular monolith.** One deployable Spring Boot application with strict internal module
    boundaries; not prematurely split into microservices.
-4. **Provider abstractions.** Routing and payments sit behind interfaces with keyless mock
-   implementations, so the product runs and is tested with no external keys; real providers are
-   selected by configuration.
+4. **Provider abstractions.** Routing and payments sit behind interfaces with keyless defaults,
+   so the product runs and is tested with no external keys. Stripe and Razorpay are selected by
+   configuration; a third-party traffic route adapter can be added without changing callers.
 5. **Server-authoritative.** Prices, totals, ETAs, order status, payment status, and shop
    visibility are decided by the server, never trusted from the client.
 6. **Durable and portable.** MySQL is the durable store; the whole stack runs with one command
@@ -80,9 +80,12 @@ graph TB
     A --> FE
 
     FE -->|REST / JWT, role-scoped| BE[OnTheWay<br/>Spring Boot modular monolith]
+    FE <-->|Authenticated WebSocket<br/>order + ETA events| BE
 
     BE --> DB[(MySQL · H2 for test/demo)]
-    BE --> RP{{Route/ETA Provider<br/>Mock · Google · Mapbox · OSRM}}
+    BE --> ES[(Elasticsearch<br/>optional catalog index)]
+    BE --> K[(Kafka<br/>optional order-event stream)]
+    BE --> RP{{Route/ETA Provider<br/>Haversine · external adapter}}
     BE --> PG{{Payment Gateway<br/>Mock · Stripe · Razorpay}}
 ```
 
@@ -99,6 +102,8 @@ graph LR
       ORD[ordering<br/>cart · orders · state machine]
       ETA[fulfillment<br/>live ETA · scheduler]
       PAY[payments]
+      SEARCH[search<br/>JPA · Elasticsearch]
+      RT[real-time<br/>WebSocket · Kafka]
       ADMIN[admin<br/>moderation · metrics]
       PLAT[platform/shared<br/>security · errors · config · correlation]
     end
@@ -108,11 +113,14 @@ graph LR
     CAT --> MERCH
     DISC --> CAT
     DISC --> MERCH
+    DISC --> SEARCH
     ORD --> CAT
     ORD --> ETA
     ORD --> PAY
+    ORD --> RT
     ADMIN --> MERCH
     ADMIN --> ORD
+    ADMIN --> SEARCH
 ```
 
 ---
@@ -187,9 +195,9 @@ graph LR
   carries its price, its shop, and the distance to that shop.
 - **Sorting**: by **distance**, **price**, or **relevance**.
 - **Range**: only shops within the chosen radius (and only approved, active shops) are returned.
-- The current implementation evaluates candidates in memory, which suits the demo dataset; it can
-  be replaced by a spatial/bounding-box query and a search index behind the same service
-  interface without changing callers.
+- The default JPA implementation evaluates candidates in memory, which suits the demo dataset.
+  Deployments can enable the included Elasticsearch index behind the same service contract;
+  a spatial/bounding-box query remains a future scale optimization.
 
 ---
 
@@ -263,11 +271,14 @@ graph LR
 ```
 
 - Stateless JWT; signature/expiry validated before claims are read; auth failures return `401`.
+- Short-lived access tokens and rotating, revocable refresh tokens are separate token types;
+  refresh tokens cannot authenticate HTTP or WebSocket requests.
 - **Role-scoped APIs**: `/api/admin/**` (admin), `/api/merchant/**` (merchant, own resources),
   customer and discovery APIs (authenticated users). Method-level checks plus ownership checks.
 - Registration cannot self-assign `ADMIN`; merchant capability is granted by role, but operating a
   live shop requires admin approval.
-- Secrets are read from the environment; CORS is an allowlist; security headers are set.
+- Authentication endpoints are rate-limited; secrets are read from the environment; CORS is an
+  allowlist; security headers are set; production configuration fails fast on placeholder secrets.
 
 ---
 
@@ -280,6 +291,7 @@ graph LR
 | Schema | **Flyway** versioned migrations; `ddl-auto=none`. |
 | Portability | **Docker compose** brings up MySQL + backend with one command, so the project can be developed on one machine and run on another without manual database setup. |
 | Configuration | Spring profiles; every secret and host is an environment variable with a safe local default. |
+| Optional platform | Kafka publishes keyed order events; Elasticsearch indexes the approved, available catalog. |
 
 ---
 
@@ -307,8 +319,8 @@ graph TB
 - **Admin**: a pending-approvals queue, a merchant/shop directory with suspend/ban/delete, and a
   metrics overview.
 - A keyless SVG map keeps the demo dependency-free; a tiled map can replace the component later.
-- Live updates use short-interval polling now; a WebSocket channel can replace it without a UI
-  redesign.
+- Live order and ETA updates use an authenticated WebSocket. The client reconnects after token
+  rotation and reloads the affected order from the authoritative REST API.
 
 ---
 
@@ -322,13 +334,14 @@ graph TB
 | ADR-4 | Live ETA with a traffic-aware buffer window | A single static ETA is wrong under real traffic | Adopted |
 | ADR-5 | Item-level search across shops with sort | Customers search by what they want, not just shop names | Adopted |
 | ADR-6 | MySQL durable + Docker-compose portability | Real persistence; develop here, run there | Adopted |
-| ADR-7 | Provider abstractions with mock defaults | Keyless, reproducible runs; real providers via config | Adopted |
+| ADR-7 | Provider abstractions with keyless defaults | Reproducible runs; real payment providers via config | Adopted |
 | ADR-8 | Modular monolith | Right-sized; clean boundaries; fast to run | Adopted |
-| ADR-9 | Defer real-time/ML ranking/native mobile | Avoid speculative complexity until needed | Deferred |
+| ADR-9 | Authenticated WebSockets with optional Kafka publication | Immediate UI updates plus an extensible event stream | Adopted |
+| ADR-10 | Defer ML ranking and native mobile | Avoid speculative complexity until product demand justifies it | Deferred |
 
 ---
 
-## 15. Phased roadmap
+## 15. Delivered phased roadmap
 
 ```mermaid
 graph LR
@@ -346,6 +359,7 @@ graph LR
 | 4 | MySQL by default, one-command portability, seed 100+ shops across many verticals |
 | 5 | WebSocket real-time, real payment providers + webhooks, money as minor units, hardening |
 
-Items beyond the current scope (real-time channel, real payment providers, ML ranking, native
-mobile) are tracked in [to-do.md](to-do.md) and are deliberately deferred; they are not required
-for the role-separated product to run end to end.
+All phases in [to-do.md](to-do.md) are implemented, tested, and documented. Potential product
+extensions—ML ranking, native mobile clients, tiled maps, an open-now filter, a traffic-aware
+third-party route adapter, and distributed coordination for horizontal scaling—are optional
+evolution work rather than incomplete requirements for the current end-to-end product.

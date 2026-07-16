@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.HexFormat;
 
 @Component
@@ -23,6 +24,11 @@ public class RazorpayPaymentGateway implements PaymentGateway {
                                   @Value("${ontheway.payment.razorpay.apisecret:}") String apiSecret) {
         this.apiKey = apiKey;
         this.apiSecret = apiSecret;
+    }
+
+    @Override
+    public String name() {
+        return "razorpay";
     }
 
     @Override
@@ -61,7 +67,9 @@ public class RazorpayPaymentGateway implements PaymentGateway {
         if (apiSecret == null || apiSecret.isBlank() || signature == null || signature.isBlank()) {
             return false;
         }
-        return hmacSha256(payload, apiSecret).equals(signature);
+        return MessageDigest.isEqual(
+                hmacSha256(payload, apiSecret).getBytes(StandardCharsets.US_ASCII),
+                signature.trim().toLowerCase().getBytes(StandardCharsets.US_ASCII));
     }
 
     private void requireKeys() {

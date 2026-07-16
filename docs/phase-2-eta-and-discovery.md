@@ -32,8 +32,8 @@ Travel time comes from a `RouteProvider` abstraction:
 - **`HaversineRouteProvider`** (default, `ontheway.route.provider=mock`): great-circle distance
   ÷ a configurable average speed. **Keyless and deterministic** — the whole feature runs and
   is tested with no external mapping API.
-- Real providers (Google / Mapbox / OSRM) can be dropped in via configuration without changing
-  any caller.
+- The interface supports adding Google, Mapbox, or OSRM adapters without changing callers; those
+  external-provider implementations are not included in this repository.
 
 The engine takes an injected `Clock`, so time is controllable in tests.
 
@@ -80,21 +80,20 @@ ETA-synced pickup primitive does not assume "food".
 ## Configuration
 
 ```
-ontheway.route.provider=mock            # mock | google | mapbox | osrm
+ontheway.route.provider=mock            # included adapter: keyless Haversine
 ontheway.eta.average-speed-kmph=30
 ontheway.eta.safety-buffer-mins=5
 ontheway.eta.default-prep-mins=15
 ```
 
-## Not yet (tracked in to-do.md)
-- Auto-advance `PLACED → PREPARING` at `prepStartAt` (scheduler).
-- Live ETA recompute as the customer moves.
+## Further extensions
 - On-route corridor discovery.
-- Real-time push (WebSocket).
+- External road-network route providers.
 
 ## Auto-advance scheduler (the ETA promise, self-driving) — DONE
 `OrderProgressionScheduler` runs every 30 s and moves every `PLACED` order whose computed
 `prepStartAt` has arrived into `PREPARING` — so the store starts preparing at exactly the
 right moment, automatically; an audit event records `system:scheduler` as the actor.
 `prepStartAt` is persisted at placement (migration `V5`); the core scan `advanceDueOrders()`
-takes an injected `Clock` for deterministic tests (`OrderProgressionSchedulerTest`).
+takes an injected `Clock` for deterministic tests (`OrderProgressionSchedulerTest`) and emits the
+same realtime status event as a manual merchant transition.

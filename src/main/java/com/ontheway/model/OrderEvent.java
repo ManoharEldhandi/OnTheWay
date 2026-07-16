@@ -11,7 +11,8 @@ import java.time.LocalDateTime;
  * Immutable audit record of a single order status transition.
  * One row is written every time an order changes state (including placement).
  */
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder

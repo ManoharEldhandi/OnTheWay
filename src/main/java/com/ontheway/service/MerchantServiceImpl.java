@@ -1,6 +1,8 @@
 package com.ontheway.service.impl;
 
 import com.ontheway.dto.*;
+import com.ontheway.exception.BadRequestException;
+import com.ontheway.exception.ConflictException;
 import com.ontheway.exception.ForbiddenException;
 import com.ontheway.exception.ResourceNotFoundException;
 import com.ontheway.model.*;
@@ -15,15 +17,18 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class MerchantServiceImpl implements MerchantService {
 
     private final MerchantRepository merchantRepository;
     private final UserRepository userRepository;
+    private final OrderRepository orderRepository;
 
     @Transactional
     @Override
     public MerchantResponseDTO applyForShop(String email, MerchantCreateDTO dto) {
         User owner = resolveUser(email);
+        validateLocation(dto.getLatitude(), dto.getLongitude());
 
         // A new shop is an application: it starts PENDING and is not yet discoverable.
         Merchant shop = Merchant.builder()
@@ -58,6 +63,7 @@ public class MerchantServiceImpl implements MerchantService {
     @Override
     public MerchantResponseDTO updateMyShop(String email, Long shopId, MerchantUpdateDTO dto) {
         Merchant shop = requireOwnedShop(email, shopId);
+        validateLocation(dto.getLatitude(), dto.getLongitude());
         shop.setStoreName(dto.getStoreName());
         shop.setAddress(dto.getAddress());
         shop.setLatitude(dto.getLatitude());
@@ -72,6 +78,10 @@ public class MerchantServiceImpl implements MerchantService {
     @Override
     public void deleteMyShop(String email, Long shopId) {
         Merchant shop = requireOwnedShop(email, shopId);
+        if (orderRepository.existsByMerchantMerchantId(shopId)) {
+            throw new ConflictException(
+                    "Shops with order history cannot be deleted; ask an administrator to suspend it");
+        }
         merchantRepository.delete(shop);
     }
 
@@ -98,6 +108,12 @@ public class MerchantServiceImpl implements MerchantService {
             throw new ForbiddenException("You do not own this shop");
         }
         return shop;
+    }
+
+    private void validateLocation(Double latitude, Double longitude) {
+        if ((latitude == null) != (longitude == null)) {
+            throw new BadRequestException("Latitude and longitude must be provided together");
+        }
     }
 
     private MerchantResponseDTO toResponseDTO(Merchant merchant) {

@@ -99,6 +99,49 @@ class RoleLifecycleIntegrationTest {
     }
 
     @Test
+    void pendingShopMenuIsVisibleToOwnerButHiddenFromCustomers() throws Exception {
+        String merchant = token("pending-menu-merch@x.com", UserRole.MERCHANT);
+        long shopId = applyForShop(merchant, "Private Pending Menu", 13.0827, 80.2707);
+        String itemBody = mockMvc.perform(post("/api/menu-items/" + shopId)
+                        .header("Authorization", merchant)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(MenuItemCreateDTO.builder()
+                                .name("Draft Item").price(99.0).availability(true).build())))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        long itemId = objectMapper.readTree(itemBody).get("menuItemId").asLong();
+
+        mockMvc.perform(get("/api/menu-items/" + itemId).header("Authorization", merchant))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/menu-items/merchant/" + shopId).header("Authorization", merchant))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1));
+
+        String customer = token("pending-menu-customer@x.com", UserRole.USER);
+        mockMvc.perform(get("/api/menu-items/" + itemId).header("Authorization", customer))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(get("/api/menu-items/merchant/" + shopId).header("Authorization", customer))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void adminLifecycleRejectsIllegalTransitions() throws Exception {
+        String merchant = token("transition-merch@x.com", UserRole.MERCHANT);
+        String admin = adminToken("transition-admin@x.com");
+        long shopId = applyForShop(merchant, "Transition Shop", 17.3850, 78.4867);
+
+        mockMvc.perform(post("/api/admin/shops/" + shopId + "/suspend").header("Authorization", admin)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"reason\":\"too early\"}"))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(post("/api/admin/shops/" + shopId + "/approve").header("Authorization", admin))
+                .andExpect(status().isOk());
+        mockMvc.perform(post("/api/admin/shops/" + shopId + "/approve").header("Authorization", admin))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(post("/api/admin/shops/" + shopId + "/reactivate").header("Authorization", admin))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void adminCanSuspendAndReactivate() throws Exception {
         String merchant = token("susp-merch@x.com", UserRole.MERCHANT);
         String admin = adminToken("susp-admin@x.com");
@@ -176,26 +219,31 @@ class RoleLifecycleIntegrationTest {
                 .andExpect(jsonPath("$.ordersByStatus").exists());
     }
 
-        @Test
-        void versionedPaginatedAdminAndMerchantEndpointsWork() throws Exception {
-                String merchant = token("page-merch@x.com", UserRole.MERCHANT);
-                String admin = adminToken("page-admin@x.com");
-                applyForShop(merchant, "Page One", 12.9716, 77.5946);
-                applyForShop(merchant, "Page Two", 12.9816, 77.6046);
+    @Test
+    void versionedPaginatedAdminAndMerchantEndpointsWork() throws Exception {
+        String merchant = token("page-merch@x.com", UserRole.MERCHANT);
+        String admin = adminToken("page-admin@x.com");
+        applyForShop(merchant, "Page One", 12.9716, 77.5946);
+        applyForShop(merchant, "Page Two", 12.9816, 77.6046);
 
-                mockMvc.perform(get("/api/v1/admin/shops/page").header("Authorization", admin)
-                                                .param("status", "PENDING")
-                                                .param("page", "0")
-                                                .param("size", "1")
-                                                .param("sort", "storeName,asc"))
-                                .andExpect(status().isOk())
-                                .andExpect(jsonPath("$.content.length()").value(1))
-                                .andExpect(jsonPath("$.totalElements").isNumber());
+        mockMvc.perform(get("/api/v1/admin/shops/page").header("Authorization", admin)
+                        .param("status", "PENDING")
+                        .param("page", "0")
+                        .param("size", "1")
+                        .param("sort", "storeName,asc"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.page").value(0))
+                .andExpect(jsonPath("$.size").value(1))
+                .andExpect(jsonPath("$.totalElements").isNumber())
+                .andExpect(jsonPath("$.totalPages").isNumber())
+                .andExpect(jsonPath("$.hasNext").isBoolean());
 
-                mockMvc.perform(get("/api/v1/merchant/orders/page").header("Authorization", merchant)
-                                                .param("page", "0")
-                                                .param("size", "5"))
-                                .andExpect(status().isOk())
-                                .andExpect(jsonPath("$.content").isArray());
-        }
+        mockMvc.perform(get("/api/v1/merchant/orders/page").header("Authorization", merchant)
+                        .param("page", "0")
+                        .param("size", "1000"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isArray())
+                .andExpect(jsonPath("$.size").value(100));
+    }
 }

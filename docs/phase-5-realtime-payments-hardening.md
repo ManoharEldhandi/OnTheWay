@@ -4,6 +4,8 @@
 
 - Native WebSocket endpoint: `GET /ws/orders?token={accessToken}`.
 - Handshake is JWT-authenticated by `OrderWebSocketAuthInterceptor`.
+- Expired access-token sessions are closed before any further event is delivered, and the
+  frontend rotates its token and reconnects periodically.
 - Events are scoped so customers see their own orders, merchants see orders for shops they own,
   and admins can observe all order events.
 - Events are emitted on:
@@ -70,5 +72,5 @@ Version aliases now mirror the main route families:
 - Auth integration tests cover refresh rotation, logout revocation, and rate limiting.
 - Payment integration tests cover minor units, mock webhook signature verification, and refunds.
 - Role lifecycle tests cover v1 paginated endpoints.
-- Full backend suite: 65 tests, 0 failures, 2 opt-in skips.
-- Real MySQL Testcontainers migration check verified V1-V8 on MySQL 8.
+- The backend suite covers unit, HTTP integration, Flyway, realtime, and payment regressions.
+- The opt-in Testcontainers check applies every committed migration to MySQL 8.

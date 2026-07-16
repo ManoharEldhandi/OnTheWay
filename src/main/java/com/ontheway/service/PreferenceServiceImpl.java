@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class PreferenceServiceImpl implements PreferenceService {
 
     private final PreferenceRepository preferenceRepository;
@@ -23,6 +24,7 @@ public class PreferenceServiceImpl implements PreferenceService {
                 .orElseThrow(() -> new ResourceNotFoundException("Preference not found"));
     }
 
+    @Transactional
     @Override
     public PreferenceResponseDTO getOrCreatePreference(Long userId) {
         Preference pref = preferenceRepository.findByUserUserId(userId)

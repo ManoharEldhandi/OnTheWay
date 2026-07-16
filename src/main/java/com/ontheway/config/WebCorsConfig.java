@@ -26,11 +26,18 @@ public class WebCorsConfig {
                 .map(String::trim)
                 .filter(s -> !s.isEmpty())
                 .toList();
+        if (origins.isEmpty() || origins.contains("*")) {
+            throw new IllegalStateException(
+                    "ontheway.cors.allowed-origins must contain explicit origins, never '*'");
+        }
 
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowedOrigins(origins);
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        config.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept"));
+        config.setAllowedHeaders(List.of(
+                "Authorization", "Content-Type", "Accept",
+                RequestCorrelationFilter.REQUEST_ID_HEADER));
+        config.setExposedHeaders(List.of(RequestCorrelationFilter.REQUEST_ID_HEADER));
         config.setAllowCredentials(true);
         config.setMaxAge(3600L);
 

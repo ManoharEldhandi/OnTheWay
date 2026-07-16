@@ -5,7 +5,6 @@ import com.ontheway.service.MerchantService;
 import com.ontheway.service.OrderService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.*;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -77,7 +76,12 @@ public class MerchantController {
 
     @PreAuthorize("hasRole('MERCHANT')")
     @GetMapping("/orders/page")
-    public ResponseEntity<Page<OrderResponseDTO>> myOrdersPage(Authentication auth, Pageable pageable) {
-        return ResponseEntity.ok(orderService.getOrdersForOwner(auth.getName(), pageable));
+    public ResponseEntity<PageResponse<OrderResponseDTO>> myOrdersPage(
+            Authentication auth,
+            Pageable pageable
+    ) {
+        return ResponseEntity.ok(
+                PageResponse.from(orderService.getOrdersForOwner(auth.getName(), pageable))
+        );
     }
 }

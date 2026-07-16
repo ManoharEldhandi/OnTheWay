@@ -31,7 +31,7 @@ one-click buttons for these.
    *store starts preparing now/in N min*, and a travel→prep timeline. This is the
    "order and get on your way" promise made visible.
 4. **Order tracking** — a live status timeline (`PLACED → PREPARING → READY → PICKED`)
-   that **auto-refreshes** as the merchant advances the order.
+   that updates from the authenticated WebSocket channel.
 
 ### Merchant console
 - Live list of incoming orders; advance each through the **legal** lifecycle with one click
@@ -59,8 +59,8 @@ src/
 - **Keyless SVG map** instead of a tiled map library: zero API keys, fully offline, reliable
   in any demo environment, and it communicates distance/direction clearly. A real tile map
   can replace `MapView` without touching pages.
-- **Polling** (4 s) for live order/merchant updates today; the WebSocket channel (backend
-  `T2.7`) can replace polling later with no UI redesign.
+- **Authenticated WebSocket updates** reload affected orders, periodically rotate access tokens,
+  and reconnect without exposing stale sessions indefinitely.
 - **Vite dev proxy** forwards `/api` to `:8080`, so there is no CORS friction and no hardcoded
   backend host in the client.
 

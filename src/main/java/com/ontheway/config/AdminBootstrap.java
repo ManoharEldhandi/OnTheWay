@@ -11,6 +11,8 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
+import java.util.Locale;
+
 /**
  * Bootstraps the first administrator on a fresh, durable database (the {@code dev}/{@code prod}
  * profiles run against MySQL with no demo seed). Without this, a freshly deployed instance would
@@ -48,16 +50,17 @@ public class AdminBootstrap implements CommandLineRunner {
         if (userRepository.countByRole(UserRole.ADMIN) > 0) {
             return; // An administrator already exists.
         }
-        if (userRepository.existsByEmail(adminEmail)) {
+        String normalizedEmail = adminEmail.trim().toLowerCase(Locale.ROOT);
+        if (userRepository.findByEmailIgnoreCase(normalizedEmail).isPresent()) {
             log.warn("Admin bootstrap skipped: a non-admin user already uses {}", adminEmail);
             return;
         }
         userRepository.save(User.builder()
                 .name(adminName)
-                .email(adminEmail)
+                .email(normalizedEmail)
                 .password(passwordEncoder.encode(adminPassword))
                 .role(UserRole.ADMIN)
                 .build());
-        log.info("Bootstrapped initial administrator account: {}", adminEmail);
+        log.info("Bootstrapped initial administrator account: {}", normalizedEmail);
     }
 }

@@ -15,7 +15,6 @@ spring:
     show-sql: false
     properties:
       hibernate.format_sql: false
-    database-platform: org.hibernate.dialect.H2Dialect
   flyway:
     enabled: true
     # H2 in MySQL mode; Flyway treats it as a generic database.
@@ -29,6 +28,8 @@ jwt:
 ontheway:
   cors:
     allowed-origins: http://localhost:5173
+  eta:
+    scheduler-enabled: false
   security:
     rate-limit:
       auth-requests-per-minute: 1000
@@ -42,6 +43,12 @@ ontheway:
   search:
     elasticsearch:
       enabled: false
+
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
 
 logging:
   level:

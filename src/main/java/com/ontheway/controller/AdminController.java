@@ -3,11 +3,11 @@ package com.ontheway.controller;
 import com.ontheway.dto.AdminMetricsResponse;
 import com.ontheway.dto.MerchantResponseDTO;
 import com.ontheway.dto.ModerationReasonDTO;
+import com.ontheway.dto.PageResponse;
 import com.ontheway.model.enums.MerchantStatus;
 import com.ontheway.service.AdminService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -41,10 +41,10 @@ public class AdminController {
     }
 
     @GetMapping("/shops/page")
-    public ResponseEntity<Page<MerchantResponseDTO>> shopsPage(
+    public ResponseEntity<PageResponse<MerchantResponseDTO>> shopsPage(
             @RequestParam(value = "status", required = false) MerchantStatus status,
             Pageable pageable) {
-        return ResponseEntity.ok(adminService.listShops(status, pageable));
+        return ResponseEntity.ok(PageResponse.from(adminService.listShops(status, pageable)));
     }
 
     @PostMapping("/shops/{shopId}/approve")

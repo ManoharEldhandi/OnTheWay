@@ -66,8 +66,9 @@ security defects and stood up the engineering scaffolding everything else relies
 ## How to run
 
 ```bash
-# Build (Java 17 + Maven)
-export JAVA_HOME="$(/usr/libexec/java_home -v 17 2>/dev/null || echo /opt/homebrew/opt/openjdk@17)"
+# Build (Java 17 + Maven; Homebrew on Apple Silicon)
+export JAVA_HOME="/opt/homebrew/opt/openjdk@17"
+export PATH="$JAVA_HOME/bin:$PATH"
 mvn -s custom-m2/settings.xml clean test     # hermetic: H2 + Flyway, no Docker needed
 mvn -s custom-m2/settings.xml spring-boot:run # dev profile, needs local MySQL
 ```
@@ -83,4 +84,4 @@ mvn -s custom-m2/settings.xml spring-boot:run # dev profile, needs local MySQL
 | `AuthSecurityIntegrationTest` | Register/login; ADMIN→400; dup→409; bad token→401; bad password→401. |
 | `OrderFlowIntegrationTest` | Full lifecycle; IDOR→403; illegal transition→400; role checks. |
 
-All 27 tests pass hermetically (`mvn test`).
+The security and persistence regressions run hermetically with `mvn test`.

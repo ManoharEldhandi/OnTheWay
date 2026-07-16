@@ -15,10 +15,28 @@ spring:
       # Flyway is the single source of truth for the schema.
       ddl-auto: none
     show-sql: false
-    database-platform: org.hibernate.dialect.MySQLDialect
   flyway:
     enabled: true
     baseline-on-migrate: false
+
+jwt:
+  secret: ${JWT_SECRET}
+
+ontheway:
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS}
+  payment:
+    provider: ${PAYMENT_PROVIDER}
+
+server:
+  error:
+    include-message: never
+
+springdoc:
+  api-docs:
+    enabled: ${SWAGGER_ENABLED:false}
+  swagger-ui:
+    enabled: ${SWAGGER_ENABLED:false}
 
 logging:
   level:

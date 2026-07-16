@@ -60,8 +60,9 @@ public class MenuItemController {
      */
     @PreAuthorize("hasRole('MERCHANT') or hasRole('USER') or hasRole('ADMIN')")
     @GetMapping("/{id}")
-    public ResponseEntity<MenuItemResponseDTO> getMenuItem(@PathVariable("id") Long id) {
-        return ResponseEntity.ok(menuItemService.getMenuItemById(id));
+    public ResponseEntity<MenuItemResponseDTO> getMenuItem(
+            Authentication auth, @PathVariable("id") Long id) {
+        return ResponseEntity.ok(menuItemService.getMenuItemById(id, auth.getName()));
     }
 
     /**
@@ -70,8 +71,9 @@ public class MenuItemController {
     @PreAuthorize("hasRole('MERCHANT') or hasRole('USER') or hasRole('ADMIN')")
     @GetMapping("/merchant/{merchantId}")
     public ResponseEntity<List<MenuItemResponseDTO>> getMenuItemsByMerchant(
-            @PathVariable("merchantId") Long merchantId) {
+            Authentication auth, @PathVariable("merchantId") Long merchantId) {
 
-        return ResponseEntity.ok(menuItemService.getMenuItemsByMerchant(merchantId));
+        return ResponseEntity.ok(menuItemService.getMenuItemsByMerchant(
+                merchantId, auth.getName()));
     }
 }

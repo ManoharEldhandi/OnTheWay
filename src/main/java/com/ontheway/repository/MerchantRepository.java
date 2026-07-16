@@ -13,6 +13,7 @@ public interface MerchantRepository extends JpaRepository<Merchant, Long> {
 
     /** All shops owned by a user (one owner can operate many shops). */
     List<Merchant> findByUser_UserId(Long userId);
+    boolean existsByUser_UserId(Long userId);
 
     /** Shops in a given status (e.g. the admin's pending-approval queue). */
     List<Merchant> findByStatus(MerchantStatus status);

@@ -65,6 +65,11 @@ class AuthSecurityIntegrationTest {
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
         String refresh = objectMapper.readTree(body).get("refreshToken").asText();
 
+        // Refresh tokens are never accepted as bearer access tokens.
+        mockMvc.perform(get("/api/users/me")
+                        .header("Authorization", "Bearer " + refresh))
+                .andExpect(status().isUnauthorized());
+
         String rotatedBody = mockMvc.perform(post("/api/auth/refresh")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"refreshToken\":\"" + refresh + "\"}"))
@@ -97,12 +102,18 @@ class AuthSecurityIntegrationTest {
                 .email("rate-limit@x.com").password("wrong-password").build();
         for (int i = 0; i < 10; i++) {
             mockMvc.perform(post("/api/auth/login")
-                                                        .header("X-Forwarded-For", "203.0.113.55")
+                            .with(request -> {
+                                request.setRemoteAddr("203.0.113.55");
+                                return request;
+                            })
                             .contentType(MediaType.APPLICATION_JSON).content(json(badLogin)))
                     .andExpect(status().isUnauthorized());
         }
         mockMvc.perform(post("/api/auth/login")
-                                                .header("X-Forwarded-For", "203.0.113.55")
+                        .with(request -> {
+                            request.setRemoteAddr("203.0.113.55");
+                            return request;
+                        })
                         .contentType(MediaType.APPLICATION_JSON).content(json(badLogin)))
                 .andExpect(status().isTooManyRequests());
     }
@@ -157,5 +168,24 @@ class AuthSecurityIntegrationTest {
         mockMvc.perform(get("/api/orders/1")
                         .header("Authorization", "Bearer not.a.real.jwt"))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void actuatorHealthIsPublicButMetricsRequiresAdmin() throws Exception {
+        mockMvc.perform(get("/actuator/health"))
+                .andExpect(status().isOk());
+
+        register("metrics-customer@x.com", UserRole.USER);
+        LoginRequest login = LoginRequest.builder()
+                .email("metrics-customer@x.com").password("password123").build();
+        String body = mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON).content(json(login)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        String accessToken = objectMapper.readTree(body).get("accessToken").asText();
+
+        mockMvc.perform(get("/actuator/metrics")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isForbidden());
     }
 }

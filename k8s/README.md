@@ -1,15 +1,19 @@
 # Kubernetes platform deployment
 
 `platform.yaml` deploys the OnTheWay backend with MySQL, Kafka, and Elasticsearch in the
-`ontheway` namespace. The backend runs two replicas, consumes configuration from a ConfigMap,
+`ontheway` namespace. The backend runs one replica, consumes configuration from a ConfigMap,
 reads database/JWT secrets from a Secret, and exposes Spring Boot readiness/liveness probes.
+One replica is intentional because WebSocket clients and the ETA scheduler are process-local;
+horizontal scaling requires a shared WebSocket broker and a distributed scheduler lock.
 
 Before deployment:
 
-1. Replace the example image and secret values.
-2. Use managed or persistent MySQL/Kafka/Elasticsearch services for production; the bundled
+1. Replace the example image, hostname, and every placeholder secret value.
+2. Change `PAYMENT_PROVIDER` from `mock` to `stripe` or `razorpay` and add that provider's
+   credentials before accepting real payments.
+3. Use managed or persistent MySQL/Kafka/Elasticsearch services for production; the bundled
    single-node resources are a reproducible development baseline.
-3. Apply and verify:
+4. Apply and verify:
 
 ```bash
 kubectl apply --dry-run=client -f k8s/platform.yaml

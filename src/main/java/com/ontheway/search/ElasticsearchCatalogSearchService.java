@@ -1,6 +1,7 @@
 package com.ontheway.search;
 
 import com.ontheway.model.MenuItem;
+import com.ontheway.model.enums.MerchantStatus;
 import com.ontheway.repository.MenuItemRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -40,10 +41,12 @@ public class ElasticsearchCatalogSearchService implements CatalogSearchService {
     @Transactional(readOnly = true)
     public long reindex() {
         IndexOperations index = operations.indexOps(CatalogSearchDocument.class);
-        if (!index.exists()) {
-            index.createWithMapping();
+        if (index.exists()) {
+            index.delete();
         }
-        List<CatalogSearchDocument> documents = menuItemRepository.findByAvailabilityTrue().stream()
+        index.createWithMapping();
+        List<CatalogSearchDocument> documents = menuItemRepository
+                .findSearchableItems(MerchantStatus.APPROVED).stream()
                 .map(ElasticsearchCatalogSearchService::toDocument)
                 .toList();
         operations.save(documents);

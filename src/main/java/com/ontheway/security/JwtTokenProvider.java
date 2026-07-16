@@ -76,16 +76,34 @@ public class JwtTokenProvider {
         return parse(token).getBody().getSubject();
     }
 
+    /** Returns true only if the token is a valid, unexpired access token. */
+    public boolean validateAccessToken(String token) {
+        return validateTokenType(token, "access");
+    }
+
+    /** Returns true only if the token is a valid, unexpired refresh token. */
+    public boolean validateRefreshToken(String token) {
+        return validateTokenType(token, "refresh");
+    }
+
     /** Returns true only if the token's signature is valid and it has not expired. */
     public boolean validateToken(String token) {
+        return parseSafely(token) != null;
+    }
+
+    private boolean validateTokenType(String token, String expectedType) {
+        Claims claims = parseSafely(token);
+        return claims != null && expectedType.equals(claims.get("type", String.class));
+    }
+
+    private Claims parseSafely(String token) {
         try {
-            parse(token);
-            return true;
+            return parse(token).getBody();
         } catch (ExpiredJwtException ex) {
             log.debug("Expired JWT: {}", ex.getMessage());
         } catch (JwtException | IllegalArgumentException ex) {
             log.debug("Invalid JWT: {}", ex.getMessage());
         }
-        return false;
+        return null;
     }
 }

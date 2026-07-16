@@ -26,6 +26,11 @@ public class StripePaymentGateway implements PaymentGateway {
     }
 
     @Override
+    public String name() {
+        return "stripe";
+    }
+
+    @Override
     public ChargeResult charge(Long orderId, double amount, String method, String idempotencyKey) {
         requireKey();
         try {

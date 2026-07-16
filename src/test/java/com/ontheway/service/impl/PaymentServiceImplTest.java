@@ -1,7 +1,9 @@
 package com.ontheway.service.impl;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ontheway.dto.PaymentCreateDTO;
 import com.ontheway.dto.PaymentResponseDTO;
+import com.ontheway.exception.BadRequestException;
 import com.ontheway.exception.ConflictException;
 import com.ontheway.exception.ForbiddenException;
 import com.ontheway.model.*;
@@ -15,6 +17,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Optional;
@@ -31,6 +34,7 @@ class PaymentServiceImplTest {
     @Mock private OrderRepository orderRepository;
     @Mock private UserRepository userRepository;
     @Mock private PaymentGateway paymentGateway;
+    @Spy private ObjectMapper objectMapper = new ObjectMapper();
     @InjectMocks private PaymentServiceImpl paymentService;
 
     private User customer;
@@ -44,7 +48,7 @@ class PaymentServiceImplTest {
 
     @Test
     void createPayment_chargesGateway_andMarksCompleted() {
-        when(orderRepository.findById(50L)).thenReturn(Optional.of(order));
+        when(orderRepository.findByIdForUpdate(50L)).thenReturn(Optional.of(order));
         when(userRepository.findByEmailIgnoreCase("cust@x.com")).thenReturn(Optional.of(customer));
         when(paymentRepository.findByOrderOrderId(50L)).thenReturn(Optional.empty());
         when(paymentGateway.charge(eq(50L), eq(100.0), eq("CARD"), anyString()))
@@ -61,7 +65,7 @@ class PaymentServiceImplTest {
 
     @Test
     void createPayment_whenGatewayDeclines_marksFailed() {
-        when(orderRepository.findById(50L)).thenReturn(Optional.of(order));
+        when(orderRepository.findByIdForUpdate(50L)).thenReturn(Optional.of(order));
         when(userRepository.findByEmailIgnoreCase("cust@x.com")).thenReturn(Optional.of(customer));
         when(paymentRepository.findByOrderOrderId(50L)).thenReturn(Optional.empty());
         when(paymentGateway.charge(anyLong(), anyDouble(), anyString(), anyString()))
@@ -76,7 +80,7 @@ class PaymentServiceImplTest {
 
     @Test
     void createPayment_isIdempotent_secondAttemptConflicts() {
-        when(orderRepository.findById(50L)).thenReturn(Optional.of(order));
+        when(orderRepository.findByIdForUpdate(50L)).thenReturn(Optional.of(order));
         when(userRepository.findByEmailIgnoreCase("cust@x.com")).thenReturn(Optional.of(customer));
         when(paymentRepository.findByOrderOrderId(50L)).thenReturn(Optional.of(new Payment()));
 
@@ -90,11 +94,64 @@ class PaymentServiceImplTest {
     @Test
     void createPayment_byNonOwner_isForbidden() {
         User stranger = User.builder().userId(9L).email("stranger@x.com").role(UserRole.USER).build();
-        when(orderRepository.findById(50L)).thenReturn(Optional.of(order));
+        when(orderRepository.findByIdForUpdate(50L)).thenReturn(Optional.of(order));
         when(userRepository.findByEmailIgnoreCase("stranger@x.com")).thenReturn(Optional.of(stranger));
 
         assertThatThrownBy(() -> paymentService.createPayment(
                 PaymentCreateDTO.builder().orderId(50L).paymentMethod("CARD").build(), "stranger@x.com"))
                 .isInstanceOf(ForbiddenException.class);
+    }
+
+    @Test
+    void updatePaymentStatus_rejectsUnknownStatus() {
+        Payment payment = Payment.builder().paymentId(7L).paymentStatus(PaymentStatus.PENDING).build();
+        when(paymentRepository.findById(7L)).thenReturn(Optional.of(payment));
+
+        assertThatThrownBy(() -> paymentService.updatePaymentStatus(7L, "successful"))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("Unknown payment status");
+    }
+
+    @Test
+    void updatePaymentStatus_doesNotRegressCompletedPayment() {
+        Payment payment = Payment.builder().paymentId(7L).paymentStatus(PaymentStatus.COMPLETED).build();
+        when(paymentRepository.findById(7L)).thenReturn(Optional.of(payment));
+
+        assertThatThrownBy(() -> paymentService.updatePaymentStatus(7L, "FAILED"))
+                .isInstanceOf(ConflictException.class);
+
+        verify(paymentRepository, never()).save(any());
+    }
+
+    @Test
+    void handleWebhook_rejectsGatewayThatIsNotConfigured() {
+        when(paymentGateway.name()).thenReturn("stripe");
+
+        assertThatThrownBy(() -> paymentService.handleWebhook("razorpay", "{}", "signature"))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("configured provider");
+
+        verify(paymentGateway, never()).verifyWebhook(anyString(), anyString());
+    }
+
+    @Test
+    void handleWebhook_ignoresLateFailureAfterCompletion() {
+        Payment payment = Payment.builder()
+                .paymentId(7L)
+                .paymentStatus(PaymentStatus.COMPLETED)
+                .gateway("stripe")
+                .gatewayReference("pi_123")
+                .build();
+        when(paymentGateway.name()).thenReturn("stripe");
+        when(paymentGateway.verifyWebhook(anyString(), eq("signature"))).thenReturn(true);
+        when(paymentRepository.findByGatewayAndGatewayReference("stripe", "pi_123"))
+                .thenReturn(Optional.of(payment));
+
+        paymentService.handleWebhook("stripe",
+                "{\"type\":\"payment_intent.payment_failed\",\"data\":{\"object\":{\"id\":\"pi_123\"}}}",
+                "signature");
+
+        assertThat(payment.getPaymentStatus()).isEqualTo(PaymentStatus.COMPLETED);
+        verify(paymentRepository, never()).save(any());
     }
 }

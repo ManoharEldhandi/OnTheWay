@@ -1,9 +1,11 @@
 package com.ontheway.service.impl;
 
 import com.ontheway.dto.*;
+import com.ontheway.exception.ConflictException;
 import com.ontheway.exception.ForbiddenException;
 import com.ontheway.exception.ResourceNotFoundException;
 import com.ontheway.model.*;
+import com.ontheway.model.enums.MerchantStatus;
 import com.ontheway.model.enums.UserRole;
 import com.ontheway.repository.*;
 import com.ontheway.service.MenuItemService;
@@ -17,10 +19,12 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class MenuItemServiceImpl implements MenuItemService {
     private final MerchantRepository merchantRepository;
     private final MenuItemRepository menuItemRepository;
     private final UserRepository userRepository;
+    private final OrderItemRepository orderItemRepository;
 
     @Transactional
     @Override
@@ -61,18 +65,26 @@ public class MenuItemServiceImpl implements MenuItemService {
         MenuItem item = menuItemRepository.findById(menuItemId)
                 .orElseThrow(() -> new ResourceNotFoundException("Menu item not found"));
         assertOwnsMerchant(item.getMerchant(), callerEmail);
+        if (orderItemRepository.existsByMenuItemMenuItemId(menuItemId)) {
+            throw new ConflictException(
+                    "Menu items referenced by order history cannot be deleted; mark it unavailable instead");
+        }
         menuItemRepository.delete(item);
     }
 
     @Override
-    public MenuItemResponseDTO getMenuItemById(Long menuItemId) {
-        return menuItemRepository.findById(menuItemId)
-                .map(this::toResponseDTO)
+    public MenuItemResponseDTO getMenuItemById(Long menuItemId, String callerEmail) {
+        MenuItem item = menuItemRepository.findById(menuItemId)
                 .orElseThrow(() -> new ResourceNotFoundException("Menu item not found"));
+        assertCanViewMerchant(item.getMerchant(), callerEmail);
+        return toResponseDTO(item);
     }
 
     @Override
-    public List<MenuItemResponseDTO> getMenuItemsByMerchant(Long merchantId) {
+    public List<MenuItemResponseDTO> getMenuItemsByMerchant(Long merchantId, String callerEmail) {
+        Merchant merchant = merchantRepository.findById(merchantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Shop not found"));
+        assertCanViewMerchant(merchant, callerEmail);
         return menuItemRepository.findByMerchantMerchantId(merchantId)
                 .stream().map(this::toResponseDTO).collect(Collectors.toList());
     }
@@ -85,6 +97,17 @@ public class MenuItemServiceImpl implements MenuItemService {
         boolean isAdmin = caller.getRole() == UserRole.ADMIN;
         if (!(isOwner || isAdmin)) {
             throw new ForbiddenException("You are not allowed to manage this merchant's menu");
+        }
+    }
+
+    private void assertCanViewMerchant(Merchant merchant, String callerEmail) {
+        User caller = userRepository.findByEmailIgnoreCase(callerEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("Authenticated user not found"));
+        boolean isOwner = merchant.getUser().getUserId().equals(caller.getUserId());
+        boolean isAdmin = caller.getRole() == UserRole.ADMIN;
+        boolean isPublic = merchant.getStatus() == MerchantStatus.APPROVED;
+        if (!(isOwner || isAdmin || isPublic)) {
+            throw new ResourceNotFoundException("Shop not found");
         }
     }
 

@@ -7,6 +7,9 @@ import com.ontheway.exception.ConflictException;
 import com.ontheway.model.User;
 import com.ontheway.model.enums.UserRole;
 import com.ontheway.repository.UserRepository;
+import com.ontheway.repository.MerchantRepository;
+import com.ontheway.repository.OrderRepository;
+import com.ontheway.repository.RefreshTokenRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -29,6 +32,12 @@ class UserServiceImplTest {
     private UserRepository userRepository;
     @Mock
     private PasswordEncoder passwordEncoder;
+    @Mock
+    private MerchantRepository merchantRepository;
+    @Mock
+    private OrderRepository orderRepository;
+    @Mock
+    private RefreshTokenRepository refreshTokenRepository;
     @InjectMocks
     private UserServiceImpl userService;
 

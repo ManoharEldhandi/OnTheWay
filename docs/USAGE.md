@@ -10,7 +10,7 @@ This guide explains how to set up, run, test, and use the OnTheWay platform end 
 |------|---------|-------|
 | Java (JDK) | 17 | The project targets Java 17. A newer system JDK is fine as long as the build uses 17 (see below). |
 | Maven | 3.9+ | Or use the system `mvn`. |
-| Node.js | 18+ | For the web frontend. |
+| Node.js | 22.12+ (24 LTS recommended) | For the web frontend and Vite 8. |
 | Docker | optional | Only needed for the MySQL-backed full-stack run. |
 
 ### Pointing the build at JDK 17
@@ -171,8 +171,9 @@ For the load/stress test, see [STRESS_TESTING.md](STRESS_TESTING.md).
 
 ## 8. Configuration reference
 
-All settings have safe local defaults and can be overridden by environment variables. The full
-list is in [.env.example](../.env.example). The most common ones:
+The `dev` and `demo` profiles have local defaults; the `prod` profile requires database, JWT,
+CORS, and payment-provider values. The full list is in [.env.example](../.env.example). The most
+common ones:
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
@@ -182,7 +183,7 @@ list is in [.env.example](../.env.example). The most common ones:
 | `JWT_SECRET` | dev placeholder | Signing secret — set a long random value outside dev |
 | `CORS_ALLOWED_ORIGINS` | localhost dev ports | Comma-separated allowlist of frontends |
 | `PAYMENT_PROVIDER` | `mock` | `mock`, `stripe`, or `razorpay` |
-| `ROUTE_PROVIDER` | `mock` | `mock`, `google`, `mapbox`, or `osrm` |
+| `ROUTE_PROVIDER` | `mock` | Included adapter: keyless Haversine `mock`; add another `RouteProvider` implementation before selecting a different value |
 
 ---
 

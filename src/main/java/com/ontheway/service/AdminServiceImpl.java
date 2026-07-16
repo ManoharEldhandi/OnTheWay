@@ -3,6 +3,7 @@ package com.ontheway.service.impl;
 import com.ontheway.dto.AdminMetricsResponse;
 import com.ontheway.dto.MerchantResponseDTO;
 import com.ontheway.exception.BadRequestException;
+import com.ontheway.exception.ConflictException;
 import com.ontheway.exception.ResourceNotFoundException;
 import com.ontheway.model.Merchant;
 import com.ontheway.model.enums.MerchantStatus;
@@ -25,6 +26,7 @@ import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class AdminServiceImpl implements AdminService {
 
     private final MerchantRepository merchantRepository;
@@ -58,8 +60,8 @@ public class AdminServiceImpl implements AdminService {
     @Override
     public MerchantResponseDTO approveShop(Long shopId) {
         Merchant shop = requireShop(shopId);
-        if (shop.getStatus() == MerchantStatus.APPROVED) {
-            throw new BadRequestException("Shop is already approved");
+        if (shop.getStatus() != MerchantStatus.PENDING) {
+            throw new BadRequestException("Only a pending shop can be approved");
         }
         shop.setStatus(MerchantStatus.APPROVED);
         shop.setStatusReason(null);
@@ -70,6 +72,9 @@ public class AdminServiceImpl implements AdminService {
     @Override
     public MerchantResponseDTO rejectShop(Long shopId, String reason) {
         Merchant shop = requireShop(shopId);
+        if (shop.getStatus() != MerchantStatus.PENDING) {
+            throw new BadRequestException("Only a pending shop can be rejected");
+        }
         shop.setStatus(MerchantStatus.REJECTED);
         shop.setStatusReason(reason);
         return toResponseDTO(merchantRepository.save(shop));
@@ -79,6 +84,9 @@ public class AdminServiceImpl implements AdminService {
     @Override
     public MerchantResponseDTO suspendShop(Long shopId, String reason) {
         Merchant shop = requireShop(shopId);
+        if (shop.getStatus() != MerchantStatus.APPROVED) {
+            throw new BadRequestException("Only an approved shop can be suspended");
+        }
         shop.setStatus(MerchantStatus.SUSPENDED);
         shop.setStatusReason(reason);
         return toResponseDTO(merchantRepository.save(shop));
@@ -100,6 +108,10 @@ public class AdminServiceImpl implements AdminService {
     @Override
     public void deleteShop(Long shopId) {
         Merchant shop = requireShop(shopId);
+        if (orderRepository.existsByMerchantMerchantId(shopId)) {
+            throw new ConflictException(
+                    "Shops with order history cannot be deleted; suspend the shop instead");
+        }
         merchantRepository.delete(shop);
     }
 

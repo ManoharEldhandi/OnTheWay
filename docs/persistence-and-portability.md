@@ -59,7 +59,8 @@ supplied. The demo profile seeds its own admin, so the bootstrap is inactive the
 
 ## Verifying migrations on real MySQL
 
-Beyond the H2 suite, an opt-in Testcontainers test boots a real MySQL 8 and applies V1–V6:
+Beyond the H2 suite, an opt-in Testcontainers test boots a real MySQL 8 and applies every
+committed Flyway migration:
 
 ```bash
 mvn -s custom-m2/settings.xml -Dmysql.it=true -Dtest=MySqlMigrationIntegrationTest test

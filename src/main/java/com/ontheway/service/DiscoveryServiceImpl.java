@@ -14,6 +14,7 @@ import com.ontheway.repository.MerchantRepository;
 import com.ontheway.service.DiscoveryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Comparator;
 import java.util.List;
@@ -27,6 +28,7 @@ import java.util.List;
  */
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class DiscoveryServiceImpl implements DiscoveryService {
 
     private final MerchantRepository merchantRepository;

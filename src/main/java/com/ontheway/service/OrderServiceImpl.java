@@ -28,6 +28,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class OrderServiceImpl implements OrderService {
     private final OrderRepository orderRepository;
     private final UserRepository userRepository;
@@ -59,6 +60,11 @@ public class OrderServiceImpl implements OrderService {
         // ETA synchronization: if the customer shared their live location and the store
         // has a location, compute when the order should be ready (on arrival) and persist
         // a human-readable ETA summary. Otherwise fall back to a client-supplied pickup time.
+        if ((dto.getLatitude() == null) != (dto.getLongitude() == null)) {
+            throw new BadRequestException("Latitude and longitude must be provided together");
+        }
+
+        LocalDateTime now = LocalDateTime.now();
         LocalDateTime pickupTime = dto.getPickupTime();
         LocalDateTime prepStartAt = null;
         String etaSegment = null;
@@ -70,7 +76,7 @@ public class OrderServiceImpl implements OrderService {
             pickupTime = eta.readyAt();
             prepStartAt = eta.prepStartAt();
             int readyInMins = Math.max(0,
-                    (int) Duration.between(LocalDateTime.now(), eta.readyAt()).toMinutes());
+                    (int) Duration.between(now, eta.readyAt()).toMinutes());
             etaSegment = String.format(
                     "travel %d min, prep %d min (+%d buffer); ready ~%d min after ordering",
                     eta.travelMins(), eta.prepTimeMins(), eta.bufferMins(), readyInMins);
@@ -79,11 +85,14 @@ public class OrderServiceImpl implements OrderService {
             throw new BadRequestException(
                     "Either pickupTime or your current location (latitude/longitude) is required");
         }
+        if (pickupTime.isBefore(now)) {
+            throw new BadRequestException("pickupTime cannot be in the past");
+        }
 
         Order order = Order.builder()
                 .user(user)
                 .merchant(merchant)
-                .orderTime(LocalDateTime.now())
+                .orderTime(now)
                 .pickupTime(pickupTime)
                 .prepStartAt(prepStartAt)
                 .status(OrderStatus.PLACED)
@@ -94,7 +103,7 @@ public class OrderServiceImpl implements OrderService {
                 .build();
 
         List<OrderItem> items = new ArrayList<>();
-        double total = 0.0;
+        long totalMinor = 0L;
         for (OrderItemCreateDTO itemDTO : dto.getItems()) {
             if (itemDTO.getQuantity() == null || itemDTO.getQuantity() < 1) {
                 throw new BadRequestException("Item quantity must be at least 1");
@@ -114,20 +123,23 @@ public class OrderServiceImpl implements OrderService {
                 throw new BadRequestException("Menu item is not available: " + item.getName());
             }
 
+            long priceMinor = item.getPriceMinor() != null
+                    ? item.getPriceMinor() : Money.toMinor(item.getPrice());
             OrderItem orderItem = OrderItem.builder()
                     .order(order)
                     .menuItem(item)
                     .quantity(itemDTO.getQuantity())
                     .priceEach(item.getPrice())
-                    .priceEachMinor(Money.toMinor(item.getPrice()))
+                    .priceEachMinor(priceMinor)
                     .currency(item.getCurrency() != null ? item.getCurrency() : Money.DEFAULT_CURRENCY)
                     .build();
             items.add(orderItem);
-            total += item.getPrice() * itemDTO.getQuantity();
+            totalMinor = Math.addExact(totalMinor,
+                    Math.multiplyExact(priceMinor, itemDTO.getQuantity().longValue()));
         }
         order.setItems(items);
-        order.setTotalAmount(total);
-        order.setTotalAmountMinor(Money.toMinor(total));
+        order.setTotalAmount(Money.toMajor(totalMinor));
+        order.setTotalAmountMinor(totalMinor);
         order.setCurrency(Money.DEFAULT_CURRENCY);
 
         orderRepository.save(order);
