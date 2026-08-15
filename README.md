@@ -12,6 +12,19 @@ restaurants, pharmacies, grocery, retail, cafés, and many more verticals.
 > Originally conceived as a smart pickup feature for navigation apps (e.g. Google Maps), built
 > here as a complete, demoable product: a secure Spring Boot backend and a React web client.
 
+## Verified project scope
+
+- **47 REST endpoints plus 3 GraphQL operations** across customer, merchant,
+  admin, discovery, order, payment, and catalog workflows.
+- **85 JUnit 5 test methods** covering unit, controller, integration, realtime,
+  persistence, security, and load behavior.
+- A developer-machine **1,000-user load-test baseline** sustained **730 sessions
+  per second** at **p99 884 ms** with **zero failed sessions**. This is an
+  indicative in-memory test-profile result, not a production-capacity claim.
+- MySQL with Flyway, JWT role-based and ownership-aware security, Elasticsearch
+  search, Kafka events, WebSockets, Docker, and Kubernetes are implemented in
+  the repository rather than listed as roadmap-only technologies.
+
 ---
 
 ## Why it's different
