@@ -21,7 +21,9 @@ public class MockPaymentGateway implements PaymentGateway {
 
     @Override
     public ChargeResult charge(Long orderId, double amount, String method, String idempotencyKey) {
-        boolean success = amount > 0;
+        // The demo UI deliberately exposes this deterministic decline so a presenter can show
+        // the recovery path without relying on an external provider or a magic test card.
+        boolean success = amount > 0 && !"DEMO_DECLINE".equalsIgnoreCase(method);
         String reference = "mock_" + UUID.randomUUID().toString().replace("-", "").substring(0, 16);
         return new ChargeResult(success, reference, "mock");
     }

@@ -1,198 +1,130 @@
-# OnTheWay — Usage Guide
+# OnTheWay developer guide
 
-This guide explains how to set up, run, test, and use the OnTheWay platform end to end.
+This guide covers local development, configuration, verification, and deployment. The application has a zero-setup local mode for evaluating the complete customer-to-merchant flow, plus a MySQL-backed Docker deployment for persistent development data.
 
----
+## Prerequisites
 
-## 1. Prerequisites
+| Tool | Version | Purpose |
+| --- | --- | --- |
+| Java | 17 | Backend runtime and build target |
+| Maven | 3.9+ | Backend build and test runner |
+| Node.js | 22.12+ (24 LTS recommended) | Frontend tooling |
+| Docker | Optional | Persistent MySQL stack |
 
-| Tool | Version | Notes |
-|------|---------|-------|
-| Java (JDK) | 17 | The project targets Java 17. A newer system JDK is fine as long as the build uses 17 (see below). |
-| Maven | 3.9+ | Or use the system `mvn`. |
-| Node.js | 22.12+ (24 LTS recommended) | For the web frontend and Vite 8. |
-| Docker | optional | Only needed for the MySQL-backed full-stack run. |
-
-### Pointing the build at JDK 17
-
-If your default `java` is newer than 17, set `JAVA_HOME` for the build session. On macOS with
-Homebrew:
+On macOS with Homebrew, point a shell session at Java 17 if another JDK is active:
 
 ```bash
 export JAVA_HOME="/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home"
 export PATH="$JAVA_HOME/bin:$PATH"
-java -version   # should report 17.x
+java -version
 ```
 
-> Editor note: a committed `.vscode/settings.json` pins the Java language server to JDK 17 so
-> in-editor analysis matches the build. If you change machines, update the path there.
+## Start the complete application
 
----
+From the repository root:
 
-## 2. Run the backend
+```bash
+# Browser on this computer
+./scripts/start local
 
-There are two ways to run the backend. For evaluation, use the **demo profile** — it needs no
-database and seeds realistic data.
+# Browser on another device connected to the same network
+./scripts/start network
+```
 
-### Option A — Demo profile (zero setup, in-memory)
+The launcher starts Spring Boot and Vite together, applies the normal Flyway migrations to a clean in-memory database, and prints the application URL. It installs missing frontend dependencies and terminates both processes when you press `Ctrl-C`.
+
+The `network` mode binds Vite to all interfaces and adds the detected LAN address to CORS. If a preferred port is occupied, use explicit overrides:
+
+```bash
+BACKEND_PORT=8081 FRONTEND_PORT=5174 ./scripts/start local
+```
+
+## Run the services manually
+
+### Local in-memory profile
+
+The `demo` Spring profile is intentionally isolated from persistent environments. It is useful for local product evaluation because it starts with a clean, representative catalog every time.
 
 ```bash
 mvn -s custom-m2/settings.xml spring-boot:run -Dspring-boot.run.profiles=demo
-```
 
-Or run the packaged jar:
-
-```bash
-mvn -s custom-m2/settings.xml -DskipTests package
-SPRING_PROFILES_ACTIVE=demo java -jar target/OnTheWay-1.0.0.jar
-```
-
-- The backend starts on **http://localhost:8080**.
-- It uses an in-memory H2 database, applies the real Flyway migrations, and seeds demo data.
-- Data resets on every restart.
-
-### Option B — Dev profile (local MySQL)
-
-1. Start MySQL and create the database (or let the URL create it):
-   ```sql
-   CREATE DATABASE onthewaydb;
-   ```
-2. Provide connection settings via environment variables (see [.env.example](../.env.example)),
-   then run:
-   ```bash
-   SPRING_PROFILES_ACTIVE=dev \
-   DB_URL="jdbc:mysql://localhost:3306/onthewaydb?useSSL=false&serverTimezone=UTC&createDatabaseIfNotExist=true" \
-   DB_USERNAME=root DB_PASSWORD=yourpassword \
-   mvn -s custom-m2/settings.xml spring-boot:run
-   ```
-
-### Option C — Full stack with Docker (backend + MySQL)
-
-```bash
-docker compose up --build
-```
-
-This builds the backend image and starts it together with MySQL. The backend runs the `dev`
-profile and applies migrations on startup.
-
-### Useful URLs
-
-| URL | Purpose |
-|-----|---------|
-| http://localhost:8080/swagger-ui.html | Interactive API documentation |
-| http://localhost:8080/actuator/health | Health check |
-| http://localhost:8080/api-docs | OpenAPI JSON |
-
-### Request tracing
-
-Every response includes an `X-Request-Id` header, and every log line for that request carries the
-same id (shown in brackets, e.g. `[trace-XYZ-789]`). To trace a specific call, send your own
-`X-Request-Id` request header and it will be honoured and echoed back.
-
----
-
-## 3. Run the frontend
-
-```bash
 cd frontend
 npm install
 npm run dev
 ```
 
-- The app starts on **http://localhost:5173**.
-- API calls to `/api` are proxied to the backend on port 8080, so run the backend first.
-
-To produce a production build:
+The frontend proxies `/api` and `/ws` to `http://localhost:8080` by default. To point Vite at another backend:
 
 ```bash
-npm run build      # outputs to frontend/dist
-npm run preview    # serve the production build locally
+VITE_API_TARGET=http://127.0.0.1:8081 npm run dev
 ```
 
----
+### Persistent MySQL profile
 
-## 4. Demo accounts
-
-When the backend runs with the `demo` profile, these accounts are seeded
-(password for all: `password123`). The login screen has one-click buttons for them.
-
-| Email | Role | Use |
-|-------|------|-----|
-| alice@ontheway.app | Customer | Browse, order, track |
-| biryani@ontheway.app | Merchant | Manage incoming orders |
-| medplus@ontheway.app | Merchant | Pharmacy storefront |
-| cafe@ontheway.app | Merchant | Café storefront |
-| admin@ontheway.app | Admin | Administrative access |
-
----
-
-## 5. Walkthrough — the customer journey
-
-1. **Log in** as the customer (`alice@ontheway.app`).
-2. **Discover**: pick a location (presets or the browser's location), set a radius, and
-   optionally filter by category. The map shows your position and nearby stores, nearest first.
-3. **Open a store** and add items to the cart.
-4. **Checkout**: the ETA panel shows when the order will be **ready** and when the store should
-   **start preparing**, timed to your arrival. Place the order; payment runs through the
-   configured gateway (the mock gateway by default).
-5. **Track**: the order page updates automatically as the order moves through
-   `PLACED → PREPARING → READY → PICKED`.
-
-## 6. Walkthrough — the merchant console
-
-1. **Log in** as a merchant (e.g. `biryani@ontheway.app`).
-2. Open **Merchant Console** to see incoming orders.
-3. Advance each order through its legal lifecycle, or cancel it. Illegal transitions are
-   rejected by the backend.
-
-> The platform also advances orders from `PLACED` to `PREPARING` automatically when the
-> ETA-computed prep-start time arrives, so a store can rely on the timing without watching
-> the console.
-
----
-
-## 7. Run the tests
-
-Hermetic test suite (no database or Docker required — uses H2 with the real migrations):
+Create a local database and configure it through environment variables:
 
 ```bash
-mvn -s custom-m2/settings.xml clean test
+SPRING_PROFILES_ACTIVE=dev \
+DB_URL="jdbc:mysql://localhost:3306/onthewaydb?useSSL=false&serverTimezone=UTC&createDatabaseIfNotExist=true" \
+DB_USERNAME=root \
+DB_PASSWORD=your-password \
+mvn -s custom-m2/settings.xml spring-boot:run
 ```
 
-Frontend type-check and build:
+The application applies Flyway migrations at startup. Do not place credentials in committed files; use a local `.env` file or your deployment secret manager.
+
+### Docker Compose
 
 ```bash
-cd frontend && npm run build
+docker compose up --build
 ```
 
-For the load/stress test, see [STRESS_TESTING.md](STRESS_TESTING.md).
+This starts MySQL, the backend, and an nginx-served frontend. Data persists in the named `ontheway-db` Docker volume.
 
----
+| Service | Address |
+| --- | --- |
+| Frontend | http://localhost:5173 |
+| Swagger UI | http://localhost:8080/swagger-ui.html |
+| Health check | http://localhost:8080/actuator/health |
+| OpenAPI JSON | http://localhost:8080/api-docs |
 
-## 8. Configuration reference
+## Configuration
 
-The `dev` and `demo` profiles have local defaults; the `prod` profile requires database, JWT,
-CORS, and payment-provider values. The full list is in [.env.example](../.env.example). The most
-common ones:
+The application uses Spring profiles and environment variables. The production profile requires explicit values for database access, JWT signing, allowed origins, and payment credentials.
 
-| Variable | Default | Purpose |
-|----------|---------|---------|
+| Variable | Local default | Notes |
+| --- | --- | --- |
 | `SPRING_PROFILES_ACTIVE` | `dev` | `dev`, `test`, `prod`, or `demo` |
-| `SERVER_PORT` | `8080` | Backend port |
-| `DB_URL` / `DB_USERNAME` / `DB_PASSWORD` | local MySQL | Database connection (dev/prod) |
-| `JWT_SECRET` | dev placeholder | Signing secret — set a long random value outside dev |
-| `CORS_ALLOWED_ORIGINS` | localhost dev ports | Comma-separated allowlist of frontends |
+| `DB_URL` | Profile-specific | JDBC URL for MySQL in persistent environments |
+| `DB_USERNAME` / `DB_PASSWORD` | Profile-specific | Database credentials |
+| `JWT_SECRET` | Development-only value | Supply a long random secret in production |
+| `CORS_ALLOWED_ORIGINS` | Local frontend addresses | Comma-separated allowed browser origins |
 | `PAYMENT_PROVIDER` | `mock` | `mock`, `stripe`, or `razorpay` |
-| `ROUTE_PROVIDER` | `mock` | Included adapter: keyless Haversine `mock`; add another `RouteProvider` implementation before selecting a different value |
+| `RAZORPAY_API_KEY` / `RAZORPAY_API_SECRET` | Unset | Required only for Razorpay |
+| `STRIPE_SECRET_KEY` / webhook secret | Unset | Required only for Stripe |
 
----
+For payment providers, keep all private keys and webhook secrets server-side. The client only receives the public configuration required to launch the provider checkout.
 
-## 9. Troubleshooting
+## Verify changes
 
-| Symptom | Cause and fix |
-|---------|---------------|
-| Editor shows many "cannot find symbol" / "never read" errors on Lombok classes | The language server is using a JDK newer than 17. The committed `.vscode/settings.json` pins it to JDK 17; reload the window after opening the project. The Maven build is unaffected. |
-| `mvn` uses the wrong Java version | Set `JAVA_HOME` to a JDK 17 (section 1). |
-| Frontend cannot reach the API | Start the backend first; the dev server proxies `/api` to port 8080. |
-| Port already in use | Stop the existing process or change `SERVER_PORT` (backend) / the Vite port. |
-| Docker build cannot reach MySQL | Wait for the `db` health check; the backend depends on it and retries. |
+```bash
+# Backend: unit, controller, integration, persistence, and realtime tests
+mvn -s custom-m2/settings.xml clean test
+
+# Frontend: TypeScript type-check and production bundle
+cd frontend
+npm ci
+npm run build
+```
+
+The CI workflow runs the backend verification suite, a real-MySQL migration test, the frontend production build, and dependency auditing on every pull request.
+
+## Deployment notes
+
+- Use the `prod` profile and a managed MySQL instance for production.
+- Store JWT, database, payment, and webhook secrets in the platform secret manager.
+- Set `CORS_ALLOWED_ORIGINS` to the exact public application origins.
+- Configure signed payment webhooks before enabling a live payment provider.
+- Kubernetes manifests and environment templates are in [`k8s/`](../k8s/).
+
+For architectural rationale, see [ARCHITECTURE.md](../ARCHITECTURE.md). For focused implementation notes, browse the remaining documents in this directory.

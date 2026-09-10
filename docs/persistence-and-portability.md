@@ -1,13 +1,13 @@
 # Persistence & Portability — develop here, run there
 
 Goal: build on one machine and run the whole product on any other machine that has only Docker —
-with **durable** data (MySQL), not an in-memory demo.
+with **durable** data (MySQL), not an in-memory local dataset.
 
 ## Two ways to run, by intent
 
 | Mode | Database | Data | Use it for |
 | --- | --- | --- | --- |
-| `demo` profile | H2 (in-memory) | Seeded: 115 shops / 507 items, wiped on restart | Zero-setup local demo |
+| local seeded (`demo`) profile | H2 (in-memory) | Five fully orderable shops, wiped on restart | Zero-setup product evaluation |
 | `dev`/`prod` profile | **MySQL** (durable) | Whatever you create; survives restarts | Real use, develop-here-run-there |
 
 The fast test suite uses H2 in **MySQL-compatibility mode** and runs the **real Flyway migrations**,
@@ -41,7 +41,7 @@ ONTHEWAY_ADMIN_PASSWORD: change-me-admin     # override in any real deployment
 ```
 
 The bootstrap is idempotent: it does nothing if an admin already exists or if no credentials are
-supplied. The demo profile seeds its own admin, so the bootstrap is inactive there.
+supplied. The local seeded profile provisions its own administrator, so the bootstrap is inactive there.
 
 > Change `ONTHEWAY_ADMIN_PASSWORD` and `JWT_SECRET` before exposing the stack to a network.
 

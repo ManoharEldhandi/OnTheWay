@@ -42,7 +42,7 @@ security defects and stood up the engineering scaffolding everything else relies
 - Duplicate email registration returns a clean `409 Conflict`.
 
 ### 5. Order integrity
-- A real **state machine** governs order status: `PLACED → PREPARING → READY → PICKED`,
+- A real **state machine** governs order status: `PLACED → ACCEPTED → PREPARING → READY → PICKED`,
   with `→ CANCELLED` from non-terminal states. Illegal transitions return `400`.
 - **Server-authoritative validation** at placement: each item must belong to the target
   merchant and be available; quantities are positive; prices come from the catalog.

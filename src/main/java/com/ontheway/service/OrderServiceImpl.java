@@ -9,10 +9,12 @@ import com.ontheway.fulfillment.EtaService;
 import com.ontheway.fulfillment.GeoPoint;
 import com.ontheway.model.*;
 import com.ontheway.model.enums.OrderStatus;
+import com.ontheway.model.enums.PaymentStatus;
 import com.ontheway.model.enums.UserRole;
 import com.ontheway.realtime.OrderRealtimeNotifier;
 import com.ontheway.repository.*;
 import com.ontheway.service.OrderService;
+import com.ontheway.service.PaymentService;
 import com.ontheway.util.Money;
 
 import lombok.RequiredArgsConstructor;
@@ -23,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.security.SecureRandom;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -37,8 +40,12 @@ public class OrderServiceImpl implements OrderService {
     private final OrderItemRepository orderItemRepository;
     private final OrderEventRepository orderEventRepository;
     private final LocationRepository locationRepository;
+    private final PaymentRepository paymentRepository;
+    private final PaymentService paymentService;
     private final EtaService etaService;
     private final OrderRealtimeNotifier realtimeNotifier;
+
+    private static final SecureRandom PICKUP_CODE_RANDOM = new SecureRandom();
 
     @Transactional
     @Override
@@ -95,11 +102,14 @@ public class OrderServiceImpl implements OrderService {
                 .orderTime(now)
                 .pickupTime(pickupTime)
                 .prepStartAt(prepStartAt)
+                .customerLatitude(dto.getLatitude())
+                .customerLongitude(dto.getLongitude())
                 .status(OrderStatus.PLACED)
                 .totalAmount(0.0) // Set after items processed
                 .totalAmountMinor(0L)
                 .currency(Money.DEFAULT_CURRENCY)
                 .etaSegment(etaSegment)
+                .pickupCode(String.format("%06d", PICKUP_CODE_RANDOM.nextInt(1_000_000)))
                 .build();
 
         List<OrderItem> items = new ArrayList<>();
@@ -145,41 +155,42 @@ public class OrderServiceImpl implements OrderService {
         orderRepository.save(order);
         recordEvent(order, null, OrderStatus.PLACED, user.getEmail(), "Order placed");
         realtimeNotifier.publish("ORDER_PLACED", order);
-        return toResponseDTO(order);
+        return toResponseDTO(order, true);
     }
 
     @Override
     public OrderResponseDTO getOrderById(Long orderId, String callerEmail) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
-        assertCanView(order, resolveCaller(callerEmail));
-        return toResponseDTO(order);
+        User caller = resolveCaller(callerEmail);
+        assertCanView(order, caller);
+        return toResponseDTO(order, order.getUser().getUserId().equals(caller.getUserId()));
     }
 
     @Override
     public List<OrderResponseDTO> getOrdersByUser(Long userId) {
         return orderRepository.findByUserUserId(userId)
-                .stream().map(this::toResponseDTO).collect(Collectors.toList());
+                .stream().map(order -> toResponseDTO(order, true)).collect(Collectors.toList());
     }
 
     @Override
     public List<OrderResponseDTO> getOrdersByMerchant(Long merchantId) {
         return orderRepository.findByMerchantMerchantId(merchantId)
-                .stream().map(this::toResponseDTO).collect(Collectors.toList());
+                .stream().map(order -> toResponseDTO(order, false)).collect(Collectors.toList());
     }
 
     @Override
     public List<OrderResponseDTO> getOrdersForOwner(String ownerEmail) {
         User owner = resolveCaller(ownerEmail);
         return orderRepository.findByMerchant_User_UserId(owner.getUserId())
-                .stream().map(this::toResponseDTO).collect(Collectors.toList());
+                .stream().map(order -> toResponseDTO(order, false)).collect(Collectors.toList());
     }
 
     @Override
     public Page<OrderResponseDTO> getOrdersForOwner(String ownerEmail, Pageable pageable) {
         User owner = resolveCaller(ownerEmail);
         return orderRepository.findByMerchant_User_UserId(owner.getUserId(), pageable)
-                .map(this::toResponseDTO);
+                .map(order -> toResponseDTO(order, false));
     }
 
     @Transactional
@@ -196,12 +207,90 @@ public class OrderServiceImpl implements OrderService {
             throw new BadRequestException(
                     "Illegal status transition: " + current + " -> " + target);
         }
+        if (target == OrderStatus.ACCEPTED || target == OrderStatus.PREPARING) {
+            assertPaymentCompleted(order);
+        }
 
         order.setStatus(target);
         orderRepository.save(order);
         recordEvent(order, current, target, caller.getEmail(), "Status updated");
+        if (target == OrderStatus.CANCELLED) {
+            paymentService.refundCompletedPaymentForOrder(orderId);
+        }
         realtimeNotifier.publish("ORDER_STATUS_CHANGED", order);
-        return toResponseDTO(order);
+        return toResponseDTO(order, false);
+    }
+
+    @Transactional
+    @Override
+    public OrderResponseDTO acceptAndStartPreparation(Long orderId, String callerEmail) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
+        User caller = resolveCaller(callerEmail);
+        assertCanManage(order, caller);
+        if (order.getStatus() != OrderStatus.PLACED) {
+            throw new BadRequestException("Only newly placed orders can be accepted");
+        }
+        assertPaymentCompleted(order);
+
+        // Retain both milestones for a trustworthy audit trail, but expose the useful state to
+        // both live clients immediately: the shop is preparing and the customer's route is live.
+        order.setStatus(OrderStatus.ACCEPTED);
+        recordEvent(order, OrderStatus.PLACED, OrderStatus.ACCEPTED, caller.getEmail(),
+                "Accepted by merchant; preparation started immediately");
+        realtimeNotifier.publish("ORDER_STATUS_CHANGED", order);
+
+        order.setStatus(OrderStatus.PREPARING);
+        order.setPrepStartAt(LocalDateTime.now());
+        orderRepository.save(order);
+        recordEvent(order, OrderStatus.ACCEPTED, OrderStatus.PREPARING, caller.getEmail(),
+                "Preparation started on acceptance");
+        realtimeNotifier.publish("ORDER_STATUS_CHANGED", order);
+        return toResponseDTO(order, false);
+    }
+
+    @Transactional
+    @Override
+    public OrderResponseDTO cancelOrder(Long orderId, String callerEmail) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
+        User caller = resolveCaller(callerEmail);
+        if (!order.getUser().getUserId().equals(caller.getUserId())) {
+            throw new ForbiddenException("You are not allowed to cancel this order");
+        }
+        if (order.getStatus() != OrderStatus.PLACED) {
+            throw new BadRequestException("Orders can only be cancelled before preparation begins");
+        }
+
+        order.setStatus(OrderStatus.CANCELLED);
+        orderRepository.save(order);
+        recordEvent(order, OrderStatus.PLACED, OrderStatus.CANCELLED, caller.getEmail(),
+                "Cancelled by customer before preparation");
+        paymentService.refundCompletedPaymentForOrder(orderId);
+        realtimeNotifier.publish("ORDER_STATUS_CHANGED", order);
+        return toResponseDTO(order, true);
+    }
+
+    @Transactional
+    @Override
+    public OrderResponseDTO confirmPickup(Long orderId, String pickupCode, String callerEmail) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
+        User caller = resolveCaller(callerEmail);
+        assertCanManage(order, caller);
+        if (order.getStatus() != OrderStatus.READY) {
+            throw new BadRequestException("Only ready orders can be handed over");
+        }
+        if (order.getPickupCode() == null || !order.getPickupCode().equals(pickupCode.trim())) {
+            throw new BadRequestException("Pickup code does not match this order");
+        }
+
+        order.setStatus(OrderStatus.PICKED);
+        orderRepository.save(order);
+        recordEvent(order, OrderStatus.READY, OrderStatus.PICKED, caller.getEmail(),
+                "Pickup code verified at hand-off");
+        realtimeNotifier.publish("ORDER_STATUS_CHANGED", order);
+        return toResponseDTO(order, false);
     }
 
     @Transactional
@@ -219,6 +308,9 @@ public class OrderServiceImpl implements OrderService {
         if (order.getStatus().isTerminal() || order.getStatus() == OrderStatus.READY) {
             throw new BadRequestException("This order is no longer en route");
         }
+        if (order.getStatus() == OrderStatus.PLACED) {
+            throw new BadRequestException("Live route timing starts once the shop accepts the order");
+        }
 
         // Record the position ping for history/analytics.
         locationRepository.save(Location.builder()
@@ -228,11 +320,19 @@ public class OrderServiceImpl implements OrderService {
                 .recordedTime(LocalDateTime.now())
                 .build());
 
-        // Recompute the live ETA from the new position and re-sync the order.
+        // Recompute the live ETA from the new position and re-sync the order. The location
+        // belongs in the append-only location history; do not overwrite the checkout origin
+        // used to draw the customer's route or a refreshed screen would collapse the map.
         Merchant merchant = order.getMerchant();
         EtaCalculation eta = etaService.estimate(new GeoPoint(latitude, longitude), merchant);
         order.setPickupTime(eta.readyAt());
-        order.setPrepStartAt(eta.prepStartAt());
+        // A merchant who has already accepted through the normal flow is actively preparing;
+        // retain that factual start time rather than replacing it with a future recommendation.
+        if (order.getStatus() != OrderStatus.PREPARING) {
+            order.setPrepStartAt(eta.prepStartAt());
+        } else if (order.getPrepStartAt() == null) {
+            order.setPrepStartAt(LocalDateTime.now());
+        }
         int readyInMins = Math.max(0,
                 (int) Duration.between(LocalDateTime.now(), eta.readyAt()).toMinutes());
         order.setEtaSegment(String.format(
@@ -277,6 +377,15 @@ public class OrderServiceImpl implements OrderService {
         }
     }
 
+    private void assertPaymentCompleted(Order order) {
+        PaymentStatus paymentStatus = paymentRepository.findByOrderOrderId(order.getOrderId())
+                .map(Payment::getPaymentStatus)
+                .orElse(null);
+        if (paymentStatus != PaymentStatus.COMPLETED) {
+            throw new BadRequestException("Payment must be completed before the shop can accept or begin preparation");
+        }
+    }
+
     private boolean isServingMerchant(Order order, User caller) {
         return caller.getRole() == UserRole.MERCHANT
                 && order.getMerchant().getUser().getUserId().equals(caller.getUserId());
@@ -293,11 +402,12 @@ public class OrderServiceImpl implements OrderService {
                 .build());
     }
 
-    private OrderResponseDTO toResponseDTO(Order order) {
+    private OrderResponseDTO toResponseDTO(Order order, boolean includeCustomerPosition) {
         List<OrderItemResponseDTO> items = order.getItems().stream().map(oi ->
                 OrderItemResponseDTO.builder()
                         .orderItemId(oi.getOrderItemId())
                         .menuItemId(oi.getMenuItem().getMenuItemId())
+                        .itemName(oi.getMenuItem().getName())
                         .quantity(oi.getQuantity())
                         .priceEach(oi.getPriceEach())
                         .priceEachMinor(oi.getPriceEachMinor())
@@ -312,6 +422,11 @@ public class OrderServiceImpl implements OrderService {
                 .orderId(order.getOrderId())
                 .userId(order.getUser().getUserId())
                 .merchantId(order.getMerchant().getMerchantId())
+                .merchantName(order.getMerchant().getStoreName())
+                .merchantLatitude(order.getMerchant().getLatitude())
+                .merchantLongitude(order.getMerchant().getLongitude())
+                .customerLatitude(includeCustomerPosition ? order.getCustomerLatitude() : null)
+                .customerLongitude(includeCustomerPosition ? order.getCustomerLongitude() : null)
                 .orderTime(order.getOrderTime())
                 .pickupTime(order.getPickupTime())
                 .prepStartAt(order.getPrepStartAt())
@@ -320,6 +435,7 @@ public class OrderServiceImpl implements OrderService {
                 .totalAmount(order.getTotalAmount())
                 .totalAmountMinor(order.getTotalAmountMinor())
                 .currency(order.getCurrency() != null ? order.getCurrency() : Money.DEFAULT_CURRENCY)
+                .pickupCode(order.getPickupCode())
                 .items(items)
                 .payment(order.getPayment() != null ? PaymentResponseDTO.builder()
                         .paymentId(order.getPayment().getPaymentId())
@@ -329,7 +445,11 @@ public class OrderServiceImpl implements OrderService {
                         .amount(order.getPayment().getAmount())
                         .amountMinor(order.getPayment().getAmountMinor())
                         .currency(order.getPayment().getCurrency() != null ? order.getPayment().getCurrency() : Money.DEFAULT_CURRENCY)
+                        .gateway(order.getPayment().getGateway())
+                        .gatewayReference(order.getPayment().getGatewayReference())
                         .paymentTime(order.getPayment().getPaymentTime())
+                        .attemptCount(order.getPayment().getAttemptCount())
+                        .failureReason(order.getPayment().getFailureReason())
                         .build() : null)
                 .createdAt(order.getCreatedAt())
                 .updatedAt(order.getUpdatedAt())

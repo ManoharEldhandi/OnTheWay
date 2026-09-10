@@ -8,16 +8,24 @@ import java.util.Set;
  * Lifecycle states of an order and the legal transitions between them.
  *
  * <pre>
- *   PLACED ──▶ PREPARING ──▶ READY ──▶ PICKED
- *      │            │
- *      └────────────┴────────▶ CANCELLED
+ *   PLACED ──▶ ACCEPTED ──▶ PREPARING ──▶ READY ──▶ PICKED
+ *      │             │              │
+ *      └─────────────┴──────────────┴────────▶ CANCELLED
  * </pre>
  */
 public enum OrderStatus {
-    PLACED, PREPARING, READY, PICKED, CANCELLED;
+    /** Payment is recorded and the shop is reviewing the request. */
+    PLACED,
+    /** The shop has committed to the pickup window; live route and chat are now active. */
+    ACCEPTED,
+    PREPARING,
+    READY,
+    PICKED,
+    CANCELLED;
 
     private static final Map<OrderStatus, Set<OrderStatus>> ALLOWED = Map.of(
-            PLACED,    EnumSet.of(PREPARING, CANCELLED),
+            PLACED,    EnumSet.of(ACCEPTED, CANCELLED),
+            ACCEPTED,  EnumSet.of(PREPARING, CANCELLED),
             PREPARING, EnumSet.of(READY, CANCELLED),
             READY,     EnumSet.of(PICKED),
             PICKED,    EnumSet.noneOf(OrderStatus.class),

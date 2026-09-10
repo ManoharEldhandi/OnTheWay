@@ -53,7 +53,7 @@ Returns located stores **within the radius**, annotated with **distance and trav
 **nearest-first**, optionally filtered by **category/vertical** (`RESTAURANT`, `PHARMACY`, `CAFE`, …).
 Radius is capped (default max 50 km). This is the data source for the map view.
 
-> The current implementation filters candidates in memory — simple and fast for the demo dataset.
+> The current implementation filters candidates in memory — simple and fast for the local seeded dataset.
 > At scale it is replaced by a bounding-box / spatial-index SQL query behind the same
 > `DiscoveryService` contract.
 
@@ -91,7 +91,7 @@ ontheway.eta.default-prep-mins=15
 - External road-network route providers.
 
 ## Auto-advance scheduler (the ETA promise, self-driving) — DONE
-`OrderProgressionScheduler` runs every 30 s and moves every `PLACED` order whose computed
+`OrderProgressionScheduler` runs every 30 s and moves every accepted (`ACCEPTED`) order whose computed
 `prepStartAt` has arrived into `PREPARING` — so the store starts preparing at exactly the
 right moment, automatically; an audit event records `system:scheduler` as the actor.
 `prepStartAt` is persisted at placement (migration `V5`); the core scan `advanceDueOrders()`

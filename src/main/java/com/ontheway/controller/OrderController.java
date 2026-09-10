@@ -57,6 +57,30 @@ public class OrderController {
         return ResponseEntity.ok(orderService.updateOrderStatus(orderId, status, auth.getName()));
     }
 
+    /** The normal merchant workflow: accepting a paid order immediately starts preparation. */
+    @PreAuthorize("hasRole('MERCHANT')")
+    @PostMapping("/{orderId}/accept")
+    public ResponseEntity<OrderResponseDTO> acceptAndStartPreparation(
+            Authentication auth,
+            @PathVariable("orderId") Long orderId) {
+        return ResponseEntity.ok(orderService.acceptAndStartPreparation(orderId, auth.getName()));
+    }
+
+    @PreAuthorize("hasRole('USER')")
+    @PostMapping("/{orderId}/cancel")
+    public ResponseEntity<OrderResponseDTO> cancelOrder(Authentication auth,
+                                                        @PathVariable("orderId") Long orderId) {
+        return ResponseEntity.ok(orderService.cancelOrder(orderId, auth.getName()));
+    }
+
+    @PreAuthorize("hasRole('MERCHANT')")
+    @PostMapping("/{orderId}/pickup")
+    public ResponseEntity<OrderResponseDTO> confirmPickup(Authentication auth,
+                                                           @PathVariable("orderId") Long orderId,
+                                                           @Valid @RequestBody PickupConfirmDTO dto) {
+        return ResponseEntity.ok(orderService.confirmPickup(orderId, dto.getPickupCode(), auth.getName()));
+    }
+
     /**
      * Stream the customer's live position for an active order. The backend recomputes the live
      * ETA (with a traffic-aware arrival window) and re-syncs the order, returning the updated ETA.

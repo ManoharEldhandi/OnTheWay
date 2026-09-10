@@ -30,4 +30,9 @@ public interface PaymentGateway {
     default boolean verifyWebhook(String payload, String signature) {
         return false;
     }
+
+    /** Public checkout key, if the provider has a browser-side hand-off (e.g. Razorpay key_id). */
+    default String publicCheckoutKey() {
+        return null;
+    }
 }

@@ -1,73 +1,65 @@
-# Phase 5 — Web Frontend
+# Phase 5 — Web frontend
 
-A **React + TypeScript + Vite** single-page app that makes the whole product clickable —
-the end-to-end demo a reviewer can actually use.
+The React + TypeScript + Vite client presents the complete route-aware pickup product across customer, merchant, and administrator roles.
 
 ## Run it
 
-```bash
-# 1) Backend (zero setup, in-memory, seeded)
-mvn -s custom-m2/settings.xml spring-boot:run -Dspring-boot.run.profiles=demo
-# or: SPRING_PROFILES_ACTIVE=demo java -jar target/OnTheWay-1.0.0.jar
+The fastest path starts the API and client together:
 
-# 2) Frontend (proxies /api -> :8080)
+```bash
+./scripts/start local
+```
+
+For separate processes, run the local seeded backend profile and Vite manually:
+
+```bash
+mvn -s custom-m2/settings.xml spring-boot:run -Dspring-boot.run.profiles=demo
+
 cd frontend
 npm install
-npm run dev          # http://localhost:5173
+npm run dev
 ```
 
-Demo logins (password `password123`): `alice@ontheway.app` (customer),
-`biryani@ontheway.app` (merchant), `admin@ontheway.app` (admin). The login screen has
-one-click buttons for these.
+## Customer journey
 
-## What it demonstrates
+1. **Discover** — choose a location, radius, and category. A dependency-free SVG neighborhood map shows nearby shops with travel distance and time; a map pin opens its menu.
+2. **Store and menu** — browse available items and build a single-shop cart.
+3. **Checkout** — review ETA-synchronized pickup timing: ready-by time, prep start, travel estimate, traffic window, and a route-to-prep explanation.
+4. **Order tracking** — after merchant acceptance, the page starts a smooth thirty-second local route simulation. Status updates, ETA checkpoints, and private order chat arrive through the authenticated WebSocket channel.
 
-### Customer journey (the hero)
-1. **Discover** — pick a location (presets or browser geolocation), radius, and category;
-   a **dependency-free SVG map** shows you and nearby stores with distance + travel time,
-   nearest-first.
-2. **Store & menu** — browse items, add to a cart (one store at a time).
-3. **Checkout — the hero screen** — a live **ETA-synced pickup** panel: *ready in N min*,
-   *store starts preparing now/in N min*, and a travel→prep timeline. This is the
-   "order and get on your way" promise made visible.
-4. **Order tracking** — a live status timeline (`PLACED → PREPARING → READY → PICKED`)
-   that updates from the authenticated WebSocket channel.
+## Merchant operations
 
-### Merchant console
-- Live list of incoming orders; advance each through the **legal** lifecycle with one click
-  (the UI mirrors the backend state machine), or cancel. Illegal moves are blocked by the API.
+- Paid-order acceptance atomically starts preparation.
+- The queue exposes the legal state transition, payment state, customer arrival window, and item manifest.
+- Arrival messaging remains operational and privacy-safe: merchants see only ETA-based en-route, approaching, and arrived cues.
+- Order chat is available while the order is active; pickup is confirmed with the customer code.
 
-## Architecture
+## Client structure
 
-```
-src/
-  api/client.ts        # fetch wrapper: attaches JWT, surfaces backend error messages
-  auth/AuthContext.tsx # login/register/logout, loads /api/users/me, token in localStorage
-  cart/CartContext.tsx # single-store cart with quantities and total
-  components/
-    Layout.tsx         # nav shell (role-aware links)
-    MapView.tsx        # SVG map projection of lat/lng (no tiles, no API key)
-  pages/
-    LoginPage, DiscoverPage, StorePage, CheckoutPage, OrderPage, OrdersPage, MerchantPage
-  location.ts          # current-location presets + persistence
-  types.ts             # DTO types mirroring the backend
+```text
+frontend/src/
+├── api/              # authenticated fetch wrapper and typed errors
+├── auth/             # login, registration, session, and role context
+├── cart/             # single-shop cart and totals
+├── components/       # navigation, maps, ETA explainer, chat, realtime alerts
+├── pages/            # customer, merchant, administrator, and payment surfaces
+├── location.ts       # route presets and map coordinates
+├── realtime.ts       # authenticated WebSocket lifecycle
+└── types.ts          # DTO-aligned TypeScript contracts
 ```
 
-### Notable decisions
-- **No business logic in the client** — it only calls `/api/v1`-style endpoints and renders.
-  Prices, totals, ETA, and status are all server-authoritative.
-- **Keyless SVG map** instead of a tiled map library: zero API keys, fully offline, reliable
-  in any demo environment, and it communicates distance/direction clearly. A real tile map
-  can replace `MapView` without touching pages.
-- **Authenticated WebSocket updates** reload affected orders, periodically rotate access tokens,
-  and reconnect without exposing stale sessions indefinitely.
-- **Vite dev proxy** forwards `/api` to `:8080`, so there is no CORS friction and no hardcoded
-  backend host in the client.
+## Design decisions
 
-## Verified end-to-end
-Driven in a real browser against the live backend: login → discovery (map + 3 seeded stores)
-→ menu → cart → ETA checkout → order placed → tracking; merchant advanced the order
-`PLACED → PREPARING → READY → PICKED` with the illegal `PREPARING → PICKED` correctly rejected.
+- **Server-authoritative operations**: prices, totals, payment state, ETA, and order transitions are calculated and validated by the API.
+- **Keyless map rendering**: custom SVG maps keep local development deterministic and API-key-free while still conveying distance, direction, road shape, and live movement.
+- **Role-scoped realtime**: each tab maintains an authenticated connection, reconnects automatically, and receives only events it is allowed to access.
+- **Responsive Vite proxy**: `/api` and `/ws` proxy to the local backend; `VITE_API_TARGET` makes alternate backend ports explicit without hardcoding hosts.
 
 ## Build
-`npm run build` type-checks (strict TS) and produces an optimized bundle.
+
+```bash
+cd frontend
+npm run build
+```
+
+The command performs a strict TypeScript check and produces an optimized production bundle.

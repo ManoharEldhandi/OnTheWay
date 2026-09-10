@@ -39,6 +39,13 @@ public class Order {
     @Column
     private LocalDateTime prepStartAt;
 
+    /** The customer-selected route origin captured at checkout. It is immutable so the route remains reproducible. */
+    @Column(name = "customer_latitude")
+    private Double customerLatitude;
+
+    @Column(name = "customer_longitude")
+    private Double customerLongitude;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private OrderStatus status;
@@ -54,6 +61,10 @@ public class Order {
 
     @Column(length = 255)
     private String etaSegment;
+
+    /** Six-character code presented by the customer at collection and verified by the merchant. */
+    @Column(name = "pickup_code", length = 12)
+    private String pickupCode;
 
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OrderItem> items = new ArrayList<>();

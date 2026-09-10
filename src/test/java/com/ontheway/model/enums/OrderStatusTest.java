@@ -10,9 +10,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 class OrderStatusTest {
 
     @Test
-    void placedCanGoToPreparingOrCancelled() {
-        assertThat(OrderStatus.PLACED.canTransitionTo(OrderStatus.PREPARING)).isTrue();
+    void placedCanGoToAcceptedOrCancelled() {
+        assertThat(OrderStatus.PLACED.canTransitionTo(OrderStatus.ACCEPTED)).isTrue();
+        assertThat(OrderStatus.PLACED.canTransitionTo(OrderStatus.PREPARING)).isFalse();
         assertThat(OrderStatus.PLACED.canTransitionTo(OrderStatus.CANCELLED)).isTrue();
+    }
+
+    @Test
+    void acceptedCanStartPreparingOrBeCancelled() {
+        assertThat(OrderStatus.ACCEPTED.canTransitionTo(OrderStatus.PREPARING)).isTrue();
+        assertThat(OrderStatus.ACCEPTED.canTransitionTo(OrderStatus.CANCELLED)).isTrue();
     }
 
     @Test
@@ -33,6 +40,7 @@ class OrderStatusTest {
         assertThat(OrderStatus.PLACED.canTransitionTo(OrderStatus.READY)).isFalse();
         assertThat(OrderStatus.PLACED.canTransitionTo(OrderStatus.PICKED)).isFalse();
         assertThat(OrderStatus.PREPARING.canTransitionTo(OrderStatus.PLACED)).isFalse();
+        assertThat(OrderStatus.ACCEPTED.canTransitionTo(OrderStatus.PLACED)).isFalse();
         assertThat(OrderStatus.PLACED.canTransitionTo(null)).isFalse();
     }
 

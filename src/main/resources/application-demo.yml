@@ -25,7 +25,9 @@ jwt:
 
 ontheway:
   cors:
-    allowed-origins: http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000
+    # The one-command launcher supplies its exact local/LAN Vite origin. Keeping
+    # explicit defaults preserves the secure allowlist for direct manual starts.
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000}
   seed:
     enabled: true
   messaging:

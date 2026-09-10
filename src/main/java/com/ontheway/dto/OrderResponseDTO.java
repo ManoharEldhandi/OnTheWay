@@ -24,6 +24,23 @@ public class OrderResponseDTO {
     @JsonProperty("merchantId")
     private Long merchantId;
 
+    /** Pickup-shop details let the customer render an order-specific live route. */
+    @JsonProperty("merchantName")
+    private String merchantName;
+
+    @JsonProperty("merchantLatitude")
+    private Double merchantLatitude;
+
+    @JsonProperty("merchantLongitude")
+    private Double merchantLongitude;
+
+    /** The customer's checkout route origin; never included in merchant queue UI. */
+    @JsonProperty("customerLatitude")
+    private Double customerLatitude;
+
+    @JsonProperty("customerLongitude")
+    private Double customerLongitude;
+
     @JsonProperty("orderTime")
     private LocalDateTime orderTime;
 
@@ -47,6 +64,9 @@ public class OrderResponseDTO {
 
     @JsonProperty("currency")
     private String currency;
+
+    @JsonProperty("pickupCode")
+    private String pickupCode;
 
     @JsonProperty("items")
     private List<OrderItemResponseDTO> items;

@@ -2,7 +2,7 @@
 
 This project includes a load test that simulates many customers using the platform at the same
 time and proves the backend serves them without errors. It is meant both as a safety check and
-as a demonstration of capacity.
+as an indicative local capacity baseline.
 
 ## What it does
 

@@ -1,10 +1,14 @@
 package com.ontheway.config;
 
-import com.ontheway.model.*;
+import com.ontheway.model.MenuItem;
+import com.ontheway.model.Merchant;
+import com.ontheway.model.User;
 import com.ontheway.model.enums.MerchantStatus;
 import com.ontheway.model.enums.StoreType;
 import com.ontheway.model.enums.UserRole;
-import com.ontheway.repository.*;
+import com.ontheway.repository.MenuItemRepository;
+import com.ontheway.repository.MerchantRepository;
+import com.ontheway.repository.UserRepository;
 import com.ontheway.util.Money;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -14,29 +18,17 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Random;
 
 /**
- * Seeds a realistic, multi-vertical demo dataset on startup when
- * {@code ontheway.seed.enabled=true} (the {@code demo} profile). Idempotent: it does nothing if
- * any users already exist.
+ * A deliberately small, reliable dataset for the zero-setup product walkthrough.
+ * Every listed shop is approved, stocked, geographically distinct, and owned by the
+ * same demo merchant. That means any pin a customer opens can be accepted and fulfilled
+ * from the single merchant dashboard; no decorative or unusable catalogue entries exist.
  *
- * <p>The dataset includes:
- * <ul>
- *   <li>An administrator and a customer.</li>
- *   <li>A small set of named, approved shops used in the guided walkthrough.</li>
- *   <li>A merchant who owns two shops (to demonstrate multi-shop ownership), including one that is
- *       still pending approval, plus a suspended shop — so the admin console has real moderation
- *       work to show.</li>
- *   <li>Over one hundred generated, approved shops spread across many verticals around the city,
- *       to demonstrate discovery and search at a realistic scale.</li>
- * </ul>
- *
- * <p>Demo logins (all password {@code password123}): {@code admin@ontheway.app} (admin),
- * {@code alice@ontheway.app} (customer), {@code biryani@ontheway.app} (merchant, multi-shop),
- * {@code medplus@ontheway.app} and {@code cafe@ontheway.app} (merchants).
+ * <p>All accounts use {@code password123}:
+ * {@code demo.customer@ontheway.app}, {@code demo.merchant@ontheway.app}, and
+ * {@code demo.admin@ontheway.app}.
  */
 @Component
 @ConditionalOnProperty(name = "ontheway.seed.enabled", havingValue = "true")
@@ -46,209 +38,91 @@ public class DemoDataSeeder implements CommandLineRunner {
 
     private static final String DEMO_PASSWORD = "password123";
 
-    /** City centre used as the geographic anchor for generated shops (MG Road, Bengaluru). */
-    private static final double BASE_LAT = 12.9716;
-    private static final double BASE_LNG = 77.5946;
-
-    /** How many additional shops to generate across verticals. */
-    private static final int GENERATED_SHOPS = 110;
-
     private final UserRepository userRepository;
     private final MerchantRepository merchantRepository;
     private final MenuItemRepository menuItemRepository;
     private final PasswordEncoder passwordEncoder;
 
-    private final Random random = new Random(42); // deterministic for reproducible demos
-
     @Override
     @Transactional
     public void run(String... args) {
-        if (userRepository.count() > 0) {
-            log.info("Demo seed skipped: data already present.");
-            return;
-        }
-        log.info("Seeding demo data...");
+        log.info("Ensuring the curated OnTheWay walkthrough data...");
 
-        createUser("admin@ontheway.app", "Ava Admin", UserRole.ADMIN);
-        createUser("alice@ontheway.app", "Alice Customer", UserRole.USER);
+        createUser("demo.customer@ontheway.app", "Demo Customer", UserRole.USER);
+        createUser("demo.admin@ontheway.app", "Demo Administrator", UserRole.ADMIN);
+        User merchant = createUser("demo.merchant@ontheway.app", "OnTheWay Merchant", UserRole.MERCHANT);
 
-        seedNamedDemoShops();
-        seedGeneratedShops();
+        // The customer default is MG Road. These locations fan out around it, so every
+        // route has visible length and every pin remains independently selectable.
+        saveShop(merchant, "Route Ready Café", StoreType.CAFE,
+                "Indiranagar 100ft Road, Bengaluru", 12.9854, 77.6168, 7, List.of(
+                        item("Signature Cappuccino", "Double-shot coffee, made to collect", 119),
+                        item("Breakfast Roll", "Egg, greens, and herb mayo", 139),
+                        item("Iced Tea", "Fresh lemon tea for the ride", 79)));
+        saveShop(merchant, "Saffron Table", StoreType.RESTAURANT,
+                "Richmond Road, Bengaluru", 12.9470, 77.6035, 10, List.of(
+                        item("Mysore Masala Dosa", "Crisp dosa with coconut chutney", 145),
+                        item("Paneer Rice Bowl", "Comfort food for pickup", 219),
+                        item("Filter Coffee", "South Indian filter blend", 65)));
+        saveShop(merchant, "Green Cross Pharmacy", StoreType.PHARMACY,
+                "Benson Town, Bengaluru", 13.0131, 77.6184, 6, List.of(
+                        item("Paracetamol 500mg", "Strip of 10 tablets", 32),
+                        item("Vitamin C Gummies", "Orange, 30 count", 199),
+                        item("Antiseptic Wipes", "Travel pack", 79)));
+        saveShop(merchant, "Market Lane General Store", StoreType.GROCERY,
+                "Koramangala 5th Block, Bengaluru", 12.9331, 77.6257, 8, List.of(
+                        item("Daily Essentials Basket", "Milk, bread, fruit, and eggs", 315),
+                        item("Toor Dal 1kg", "Everyday pantry staple", 169),
+                        item("Bananas 1kg", "Fresh produce", 68)));
+        saveShop(merchant, "Circuit House", StoreType.ELECTRONICS,
+                "Malleshwaram, Bengaluru", 12.9970, 77.5675, 9, List.of(
+                        item("USB-C Cable", "Durable 1.5 metre cable", 299),
+                        item("Power Bank", "10,000 mAh", 1299),
+                        item("Wireless Earbuds", "Compact charging case", 1699)));
 
-        log.info("Demo data seeded: {} users, {} shops ({} approved, {} pending, {} suspended), {} items.",
-                userRepository.count(), merchantRepository.count(),
-                merchantRepository.countByStatus(MerchantStatus.APPROVED),
-                merchantRepository.countByStatus(MerchantStatus.PENDING),
-                merchantRepository.countByStatus(MerchantStatus.SUSPENDED),
-                menuItemRepository.count());
+        log.info("Curated demo data ready: {} accounts, {} orderable shops, {} menu items.",
+                userRepository.count(), merchantRepository.count(), menuItemRepository.count());
     }
-
-    /** A few named shops used by the guided walkthrough, plus admin-moderation examples. */
-    private void seedNamedDemoShops() {
-        // A merchant who owns multiple shops: one approved, one still pending review.
-        User biryaniOwner = createUser("biryani@ontheway.app", "Bengaluru Biryani Co.", UserRole.MERCHANT);
-        saveShop(biryaniOwner, "Bangalore Biryani House", StoreType.RESTAURANT, MerchantStatus.APPROVED,
-                "MG Road, Bengaluru", 12.9716, 77.5946, 20, null, List.of(
-                        item("Chicken Biryani", "Aromatic dum biryani", 250.0),
-                        item("Paneer Butter Masala", "Creamy and rich", 220.0),
-                        item("Veg Pulao", "Fragrant rice with veggies", 180.0)));
-        saveShop(biryaniOwner, "Biryani House Express", StoreType.FAST_FOOD, MerchantStatus.PENDING,
-                "Whitefield, Bengaluru", 12.9698, 77.7499, 12, null, List.of(
-                        item("Express Chicken Biryani", "Single-serve, fast", 180.0),
-                        item("Egg Roll", "Street-style", 70.0)));
-
-        User medOwner = createUser("medplus@ontheway.app", "MedPlus Owner", UserRole.MERCHANT);
-        saveShop(medOwner, "MedPlus Pharmacy", StoreType.PHARMACY, MerchantStatus.APPROVED,
-                "Indiranagar, Bengaluru", 12.9750, 77.6000, 10, null, List.of(
-                        item("Paracetamol 500mg (10)", "Fever and pain relief", 30.0),
-                        item("Vitamin C (60)", "Immunity support", 150.0),
-                        item("Hand Sanitizer 200ml", "70% alcohol", 90.0)));
-
-        User cafeOwner = createUser("cafe@ontheway.app", "Brew & Bite Owner", UserRole.MERCHANT);
-        saveShop(cafeOwner, "Brew & Bite Cafe", StoreType.CAFE, MerchantStatus.APPROVED,
-                "Koramangala, Bengaluru", 12.9680, 77.5900, 8, null, List.of(
-                        item("Cappuccino", "Freshly brewed", 120.0),
-                        item("Veg Sandwich", "Grilled and toasted", 100.0),
-                        item("Blueberry Muffin", "Baked today", 80.0)));
-        // A suspended shop so the admin console shows a reactivation case.
-        saveShop(cafeOwner, "Late Night Diner", StoreType.RESTAURANT, MerchantStatus.SUSPENDED,
-                "HSR Layout, Bengaluru", 12.9100, 77.6400, 15, "Temporarily suspended pending review",
-                List.of(item("Midnight Thali", "Full meal", 200.0)));
-    }
-
-    /** Generates many approved shops across verticals to demonstrate discovery and search at scale. */
-    private void seedGeneratedShops() {
-        Vertical[] verticals = Vertical.values();
-        for (int i = 0; i < GENERATED_SHOPS; i++) {
-            Vertical v = verticals[i % verticals.length];
-            String ownerEmail = "owner" + i + "@ontheway.app";
-            User owner = createUser(ownerEmail, v.label + " Owner " + i, UserRole.MERCHANT);
-
-            String shopName = v.namePrefixes[random.nextInt(v.namePrefixes.length)] + " " + (i + 1);
-            double lat = BASE_LAT + (random.nextDouble() - 0.5) * 0.18; // ~±10 km
-            double lng = BASE_LNG + (random.nextDouble() - 0.5) * 0.18;
-            int prep = 5 + random.nextInt(25);
-
-            List<MenuItem> items = new ArrayList<>();
-            int itemCount = 3 + random.nextInt(4);
-            for (int k = 0; k < itemCount; k++) {
-                String name = v.items[random.nextInt(v.items.length)];
-                double price = v.minPrice + random.nextInt(Math.max(1, v.maxPrice - v.minPrice));
-                items.add(item(name, v.label + " item", round2(price)));
-            }
-            saveShop(owner, shopName, v.storeType, MerchantStatus.APPROVED,
-                    v.label + " district, Bengaluru", lat, lng, prep, null, items);
-        }
-    }
-
-    // ----- persistence helpers ------------------------------------------
 
     private User createUser(String email, String name, UserRole role) {
-        return userRepository.save(User.builder()
+        return userRepository.findByEmailIgnoreCase(email).orElseGet(() -> userRepository.save(User.builder()
                 .email(email)
                 .password(passwordEncoder.encode(DEMO_PASSWORD))
                 .name(name)
                 .role(role)
-                .build());
+                .build()));
     }
 
-    private void saveShop(User owner, String name, StoreType type, MerchantStatus status,
-                          String address, double lat, double lng, int prepMins, String statusReason,
-                          List<MenuItem> items) {
-        Merchant shop = merchantRepository.save(Merchant.builder()
+    private void saveShop(User owner, String name, StoreType type, String address,
+                          double latitude, double longitude, int prepMins, List<MenuItem> items) {
+        Merchant shop = merchantRepository.findByStoreNameIgnoreCase(name).orElseGet(() -> merchantRepository.save(Merchant.builder()
                 .user(owner)
                 .storeName(name)
                 .storeType(type)
-                .status(status)
-                .statusReason(statusReason)
+                .status(MerchantStatus.APPROVED)
                 .address(address)
-                .latitude(lat)
-                .longitude(lng)
+                .latitude(latitude)
+                .longitude(longitude)
                 .prepTimeMins(prepMins)
-                .etaBufferMins(5)
-                .build());
-        for (MenuItem mi : items) {
-            mi.setMerchant(shop);
-            menuItemRepository.save(mi);
+                .etaBufferMins(3)
+                .build()));
+        if (!menuItemRepository.findByMerchantMerchantId(shop.getMerchantId()).isEmpty()) {
+            return;
+        }
+        for (MenuItem item : items) {
+            item.setMerchant(shop);
+            menuItemRepository.save(item);
         }
     }
 
     private MenuItem item(String name, String description, double price) {
         return MenuItem.builder()
-                                .name(name).description(description).price(price)
-                                .priceMinor(Money.toMinor(price)).currency(Money.DEFAULT_CURRENCY)
-                                .availability(true).build();
-    }
-
-    private double round2(double v) {
-        return Math.round(v * 100.0) / 100.0;
-    }
-
-    /**
-     * Templates used to generate believable shops, menus, and prices per vertical.
-     */
-    private enum Vertical {
-        RESTAURANTS(StoreType.RESTAURANT, "Restaurant", 120, 400,
-                new String[]{"Spice Garden", "Curry Leaf", "Tandoori Nights", "Coastal Kitchen"},
-                new String[]{"Chicken Biryani", "Paneer Tikka", "Masala Dosa", "Butter Naan", "Dal Makhani"}),
-        FAST_FOOD(StoreType.FAST_FOOD, "Fast Food", 60, 220,
-                new String[]{"Burger Point", "Roll Express", "Wrap & Go", "Quick Bites"},
-                new String[]{"Veg Burger", "Chicken Wrap", "French Fries", "Egg Roll", "Cold Coffee"}),
-        CAFES(StoreType.CAFE, "Cafe", 80, 280,
-                new String[]{"Bean Scene", "The Daily Grind", "Cuppa Co", "Mocha House"},
-                new String[]{"Cappuccino", "Latte", "Croissant", "Veg Sandwich", "Brownie"}),
-        BAKERY(StoreType.BAKERY, "Bakery", 40, 250,
-                new String[]{"Fresh Crumbs", "Golden Loaf", "Sweet Tooth", "Oven Fresh"},
-                new String[]{"Whole Wheat Bread", "Chocolate Cake", "Puff", "Cookies (250g)", "Muffin"}),
-        PHARMACY(StoreType.PHARMACY, "Pharmacy", 20, 400,
-                new String[]{"CityCare Pharmacy", "WellMeds", "HealthFirst", "QuickMed"},
-                new String[]{"Paracetamol (10)", "Cough Syrup", "Vitamin C (60)", "Bandage Roll", "ORS Pack"}),
-        MEDICAL(StoreType.MEDICAL, "Medical", 50, 600,
-                new String[]{"LifeLine Medical", "CarePoint", "MediStore", "PrimeHealth"},
-                new String[]{"BP Monitor", "Thermometer", "First-Aid Kit", "Glucometer Strips", "Face Masks (50)"}),
-        GROCERY(StoreType.GROCERY, "Grocery", 20, 300,
-                new String[]{"Daily Needs", "Corner Mart", "FreshKart", "Green Basket"},
-                new String[]{"Rice (1kg)", "Toor Dal (1kg)", "Cooking Oil (1L)", "Sugar (1kg)", "Tea (250g)"}),
-        SUPERMARKET(StoreType.SUPERMARKET, "Supermarket", 30, 500,
-                new String[]{"MegaMart", "ValueStore", "SuperSave", "BigBasket Hub"},
-                new String[]{"Detergent (1kg)", "Shampoo (340ml)", "Biscuits Combo", "Atta (5kg)", "Soft Drink (2L)"}),
-        HOTEL(StoreType.HOTEL, "Hotel", 200, 1200,
-                new String[]{"Comfort Inn", "City Lodge", "Grand Stay", "Rest Easy"},
-                new String[]{"Room Service Thali", "Continental Breakfast", "Club Sandwich", "Fresh Juice", "Pasta"}),
-        BOOKSTORE(StoreType.BOOKSTORE, "Bookstore", 100, 800,
-                new String[]{"Page Turner", "Book Nook", "Readers' Corner", "Inkwell"},
-                new String[]{"Fiction Bestseller", "Notebook (200p)", "Gel Pens (5)", "Children's Book", "Magazine"}),
-        ELECTRONICS(StoreType.ELECTRONICS, "Electronics", 150, 3000,
-                new String[]{"Gadget Hub", "ElectroMart", "TechPoint", "PowerPlay"},
-                new String[]{"USB-C Cable", "Earbuds", "Power Bank 10000mAh", "Phone Case", "HDMI Cable"}),
-        HARDWARE(StoreType.HARDWARE, "Hardware", 30, 900,
-                new String[]{"FixIt Hardware", "ToolBox", "BuildMart", "Nuts & Bolts"},
-                new String[]{"Screwdriver Set", "LED Bulb", "Paint (1L)", "Hammer", "Extension Board"}),
-        FLORIST(StoreType.FLORIST, "Florist", 100, 700,
-                new String[]{"Petal Co", "Bloom Room", "Flower Bazaar", "Fresh Blooms"},
-                new String[]{"Rose Bouquet", "Gerbera Bunch", "Orchid Pot", "Birthday Flowers", "Marigold Garland"}),
-        PET_STORE(StoreType.PET_STORE, "Pet Store", 60, 1200,
-                new String[]{"Paws & Claws", "Pet Corner", "Happy Tails", "FurryFriends"},
-                new String[]{"Dog Food (1kg)", "Cat Litter (5kg)", "Chew Toy", "Pet Shampoo", "Bird Feed"}),
-        RETAIL(StoreType.RETAIL, "Retail", 100, 1500,
-                new String[]{"Style Studio", "Urban Threads", "Trend Mart", "Daily Wear"},
-                new String[]{"Cotton T-Shirt", "Socks (3 pairs)", "Cap", "Tote Bag", "Belt"});
-
-        final StoreType storeType;
-        final String label;
-        final int minPrice;
-        final int maxPrice;
-        final String[] namePrefixes;
-        final String[] items;
-
-        Vertical(StoreType storeType, String label, int minPrice, int maxPrice,
-                 String[] namePrefixes, String[] items) {
-            this.storeType = storeType;
-            this.label = label;
-            this.minPrice = minPrice;
-            this.maxPrice = maxPrice;
-            this.namePrefixes = namePrefixes;
-            this.items = items;
-        }
+                .name(name)
+                .description(description)
+                .price(price)
+                .priceMinor(Money.toMinor(price))
+                .currency(Money.DEFAULT_CURRENCY)
+                .availability(true)
+                .build();
     }
 }

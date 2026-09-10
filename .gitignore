@@ -1,56 +1,57 @@
-# Compiled class file
-*.class
-
-# Log file
-*.log
-
-# BlueJ files
-*.ctxt
-
-# Mobile Tools for Java (J2ME)
-.mtj.tmp/
-
-# Package Files #
-*.jar
-*.war
-*.nar
-*.ear
-*.zip
-*.tar.gz
-*.rar
-
-# virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
-hs_err_pid*
-replay_pid*
+# Operating-system and editor files
 .DS_Store
-
-# Build output
-target/
-build/
-
-# Logs
-logs/
-
-# Secrets / local env
-.env
-*.env.local
-
-# IDE
+Thumbs.db
 .idea/
 *.iml
+*.swp
+*.swo
+*.orig
 .vscode/*
 !.vscode/settings.json
 !.vscode/extensions.json
 
-# Node / frontend
-node_modules/
-dist/
-.vite/
-
-# Maven local repository (keep custom-m2/settings.xml, ignore downloaded deps)
+# Java, Maven, and local databases
+target/
+build/
+*.class
+*.jar
+*.war
+*.nar
+*.ear
+*.h2.db
+*.mv.db
+*.trace.db
+hs_err_pid*
+replay_pid*
 .m2/
 custom-m2/repository/
 
-# Private planning / internal docs
+# Node and frontend tooling
+node_modules/
+frontend/node_modules/
+dist/
+frontend/dist/
+.vite/
+frontend/.vite/
+coverage/
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Local configuration, secrets, and logs
+.env
+.env.*
+!.env.example
+*.local
+*.log
+logs/
+
+# Browser test artefacts (committed product screenshots live in docs/assets/)
+.playwright-cli/
+output/playwright/
+
+# Private planning
 /to-do.md
 /Idea & Documentation/

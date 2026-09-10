@@ -74,7 +74,8 @@ class OrderFlowIntegrationTest {
         String merchantToken = registerAndLogin("flow-merchant@x.com", UserRole.MERCHANT);
         MerchantCreateDTO merchantDto = MerchantCreateDTO.builder()
                 .storeName("Flow Cafe").storeType(StoreType.CAFE)
-                .address("1 Test St").etaBufferMins(10).build();
+                .address("1 Test St").latitude(12.9716).longitude(77.5946)
+                .prepTimeMins(8).etaBufferMins(10).build();
         long merchantId = applyApprove(merchantToken, merchantDto);
 
         // --- Menu item ---
@@ -91,6 +92,7 @@ class OrderFlowIntegrationTest {
         OrderCreateDTO orderDto = OrderCreateDTO.builder()
                 .merchantId(merchantId)
                 .pickupTime(LocalDateTime.now().plusMinutes(30))
+                .latitude(12.9868).longitude(77.5732)
                 .paymentMethod("CARD")
                 .items(List.of(OrderItemCreateDTO.builder().menuItemId(menuItemId).quantity(2).build()))
                 .build();
@@ -102,6 +104,7 @@ class OrderFlowIntegrationTest {
                 .andExpect(jsonPath("$.totalAmount").value(8.0))
                 .andReturn().getResponse().getContentAsString();
         long orderId = idFrom(orderBody, "orderId");
+        String pickupCode = objectMapper.readTree(orderBody).get("pickupCode").asText();
 
         // Historical data is immutable: referenced catalog/account records cannot be deleted.
         mockMvc.perform(delete("/api/menu-items/" + menuItemId)
@@ -121,23 +124,96 @@ class OrderFlowIntegrationTest {
 
         // --- Owner can view the order ---
         mockMvc.perform(get("/api/orders/" + orderId).header("Authorization", bearer(customerToken)))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.customerLatitude").value(12.9868))
+                .andExpect(jsonPath("$.customerLongitude").value(77.5732));
+
+        // Merchant visibility is deliberately ETA-only: even a serving merchant cannot receive
+        // the stored route position from the generic order endpoint.
+        mockMvc.perform(get("/api/orders/" + orderId).header("Authorization", bearer(merchantToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.customerLatitude").value(org.hamcrest.Matchers.nullValue()))
+                .andExpect(jsonPath("$.customerLongitude").value(org.hamcrest.Matchers.nullValue()));
 
         // --- IDOR: a different customer cannot view it ---
         String strangerToken = registerAndLogin("flow-stranger@x.com", UserRole.USER);
         mockMvc.perform(get("/api/orders/" + orderId).header("Authorization", bearer(strangerToken)))
                 .andExpect(status().isForbidden());
 
-        // --- Merchant advances the order through legal states ---
-        mockMvc.perform(put("/api/orders/" + orderId + "/status").param("status", "PREPARING")
+        // --- An unpaid order is never allowed to be accepted ---
+        mockMvc.perform(put("/api/orders/" + orderId + "/status").param("status", "ACCEPTED")
+                        .header("Authorization", bearer(merchantToken)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Payment must be completed before the shop can accept or begin preparation"));
+        mockMvc.perform(post("/api/orders/" + orderId + "/messages")
+                        .header("Authorization", bearer(customerToken))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"body\":\"Can you add a note?\"}"))
+                .andExpect(status().isBadRequest());
+
+        // --- Customer pays before a merchant can accept and begin preparation ---
+        mockMvc.perform(post("/api/payments").header("Authorization", bearer(customerToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(PaymentCreateDTO.builder()
+                                .orderId(orderId).paymentMethod("CARD").build())))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.paymentStatus").value("COMPLETED"));
+
+        // --- The normal merchant action accepts and begins preparation atomically ---
+        mockMvc.perform(post("/api/orders/" + orderId + "/accept")
                         .header("Authorization", bearer(merchantToken)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("PREPARING"));
+        assertThat(orderRepository.findById(orderId).orElseThrow().getPrepStartAt())
+                .isBeforeOrEqualTo(LocalDateTime.now().plusMinutes(1));
+        assertThat(orderEventRepository.findByOrderOrderIdOrderByCreatedAtAsc(orderId))
+                .anySatisfy(event -> {
+                    assertThat(event.getFromStatus()).isEqualTo(OrderStatus.PLACED);
+                    assertThat(event.getToStatus()).isEqualTo(OrderStatus.ACCEPTED);
+                })
+                .anySatisfy(event -> {
+                    assertThat(event.getFromStatus()).isEqualTo(OrderStatus.ACCEPTED);
+                    assertThat(event.getToStatus()).isEqualTo(OrderStatus.PREPARING);
+                });
 
+        // --- The private order thread opens only after acceptance and is shared both ways ---
+        mockMvc.perform(post("/api/orders/" + orderId + "/messages")
+                        .header("Authorization", bearer(customerToken))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"body\":\"Please keep the latte less sweet\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.senderRole").value("USER"));
+        mockMvc.perform(get("/api/orders/" + orderId + "/messages")
+                        .header("Authorization", bearer(merchantToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].body").value("Please keep the latte less sweet"));
+        mockMvc.perform(post("/api/orders/" + orderId + "/messages")
+                        .header("Authorization", bearer(merchantToken))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"body\":\"Noted — we will do that.\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.senderRole").value("MERCHANT"));
+        mockMvc.perform(get("/api/orders/" + orderId + "/messages")
+                        .header("Authorization", bearer(customerToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[1].body").value("Noted — we will do that."));
         // --- Illegal transition PREPARING -> PICKED is rejected ---
         mockMvc.perform(put("/api/orders/" + orderId + "/status").param("status", "PICKED")
                         .header("Authorization", bearer(merchantToken)))
                 .andExpect(status().isBadRequest());
+
+        // --- Ready orders are handed over only after the customer code is verified ---
+        mockMvc.perform(put("/api/orders/" + orderId + "/status").param("status", "READY")
+                        .header("Authorization", bearer(merchantToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("READY"));
+        mockMvc.perform(post("/api/orders/" + orderId + "/pickup")
+                        .header("Authorization", bearer(merchantToken))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"pickupCode\":\"000000\"}"))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(post("/api/orders/" + orderId + "/pickup")
+                        .header("Authorization", bearer(merchantToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(java.util.Map.of("pickupCode", pickupCode))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("PICKED"));
 
         // --- A customer cannot change order status (role-restricted) ---
         mockMvc.perform(put("/api/orders/" + orderId + "/status").param("status", "READY")
@@ -205,13 +281,23 @@ class OrderFlowIntegrationTest {
         order.setPrepStartAt(LocalDateTime.now().minusMinutes(1));
         orderRepository.saveAndFlush(order);
 
+        mockMvc.perform(post("/api/payments").header("Authorization", bearer(customerToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(PaymentCreateDTO.builder()
+                                .orderId(orderId).paymentMethod("CARD").build())))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(put("/api/orders/" + orderId + "/status").param("status", "ACCEPTED")
+                        .header("Authorization", bearer(merchantToken)))
+                .andExpect(status().isOk());
+
         orderProgressionScheduler.tick();
 
         assertThat(orderRepository.findById(orderId).orElseThrow().getStatus())
                 .isEqualTo(OrderStatus.PREPARING);
         assertThat(orderEventRepository.findByOrderOrderIdOrderByCreatedAtAsc(orderId))
                 .anySatisfy(event -> {
-                    assertThat(event.getFromStatus()).isEqualTo(OrderStatus.PLACED);
+                    assertThat(event.getFromStatus()).isEqualTo(OrderStatus.ACCEPTED);
                     assertThat(event.getToStatus()).isEqualTo(OrderStatus.PREPARING);
                     assertThat(event.getChangedBy()).isEqualTo("system:scheduler");
                 });

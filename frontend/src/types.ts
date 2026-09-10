@@ -9,7 +9,8 @@ export type StoreType =
 
 export type MerchantStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'SUSPENDED';
 
-export type OrderStatus = 'PLACED' | 'PREPARING' | 'READY' | 'PICKED' | 'CANCELLED';
+export type OrderStatus = 'PLACED' | 'ACCEPTED' | 'PREPARING' | 'READY' | 'PICKED' | 'CANCELLED';
+export type PaymentStatus = 'PENDING' | 'COMPLETED' | 'FAILED' | 'REFUNDED';
 
 export interface UserResponse {
   userId: number;
@@ -102,6 +103,7 @@ export interface EtaQuote {
 export interface OrderItemResponse {
   orderItemId: number;
   menuItemId: number;
+  itemName: string;
   quantity: number;
   priceEach: number;
   priceEachMinor?: number;
@@ -110,10 +112,30 @@ export interface OrderItemResponse {
   currency?: string;
 }
 
+export interface PaymentResponse {
+  paymentId: number;
+  orderId: number;
+  paymentStatus: PaymentStatus;
+  paymentMethod: string;
+  amount: number;
+  amountMinor?: number;
+  currency?: string;
+  gateway: string | null;
+  gatewayReference: string | null;
+  paymentTime: string;
+  attemptCount: number;
+  failureReason: string | null;
+}
+
 export interface OrderResponse {
   orderId: number;
   userId: number;
   merchantId: number;
+  merchantName: string | null;
+  merchantLatitude: number | null;
+  merchantLongitude: number | null;
+  customerLatitude: number | null;
+  customerLongitude: number | null;
   orderTime: string;
   pickupTime: string;
   etaSegment: string | null;
@@ -121,7 +143,29 @@ export interface OrderResponse {
   totalAmount: number;
   totalAmountMinor?: number;
   currency?: string;
+  pickupCode: string | null;
   items: OrderItemResponse[];
+  payment: PaymentResponse | null;
+}
+
+export interface OrderMessage {
+  orderMessageId: number;
+  orderId: number;
+  senderUserId: number;
+  senderName: string;
+  senderRole: UserRole;
+  body: string;
+  createdAt: string;
+}
+
+export interface DemoStatus {
+  enabled: boolean;
+}
+
+export interface PaymentProviderConfig {
+  provider: string;
+  demo: boolean;
+  publicKey: string | null;
 }
 
 export interface Coordinates {

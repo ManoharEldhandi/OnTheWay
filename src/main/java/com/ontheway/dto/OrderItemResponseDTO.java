@@ -17,6 +17,9 @@ public class OrderItemResponseDTO {
     @JsonProperty("menuItemId")
     private Long menuItemId;
 
+    @JsonProperty("itemName")
+    private String itemName;
+
     @JsonProperty("quantity")
     private Integer quantity;
 

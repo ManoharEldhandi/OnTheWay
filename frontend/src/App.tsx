@@ -4,6 +4,7 @@ import { Layout } from './components/Layout';
 import { useAuth } from './auth/AuthContext';
 import type { UserRole } from './types';
 import { LoginPage } from './pages/LoginPage';
+import { DemoPaymentPage } from './pages/DemoPaymentPage';
 // Customer
 import { DiscoverPage } from './pages/DiscoverPage';
 import { StorePage } from './pages/StorePage';
@@ -44,6 +45,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/payment-demo" element={<DemoPaymentPage />} />
 
       {/* Customer experience */}
       <Route element={<Require role="USER"><Layout /></Require>}>

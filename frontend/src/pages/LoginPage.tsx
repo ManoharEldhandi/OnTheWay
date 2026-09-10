@@ -9,7 +9,7 @@ export function LoginPage() {
   const { login, register, user } = useAuth();
   const navigate = useNavigate();
   const [mode, setMode] = useState<'login' | 'register'>('login');
-  const [email, setEmail] = useState('alice@ontheway.app');
+  const [email, setEmail] = useState('demo.customer@ontheway.app');
   const [password, setPassword] = useState('password123');
   const [name, setName] = useState('');
   const [role, setRole] = useState<UserRole>('USER');
@@ -50,7 +50,7 @@ export function LoginPage() {
       <div className="card col login-card motion-line">
         <div className="row">
           <span className="login-mark" />
-          <div className="brand" style={{ fontSize: 24 }}>On<span>The</span>Way</div>
+          <div className="brand" style={{ fontSize: 24 }}><span className="brand-name">OnTheWay</span></div>
         </div>
         <span className="kicker">Route-Aware Pickup & Reservation Platform</span>
         <p className="sub">Three dashboards. One ETA engine. Real marketplace controls.</p>
@@ -59,16 +59,33 @@ export function LoginPage() {
           {mode === 'register' && (
             <div className="col">
               <label>Name</label>
-              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" />
+              <input
+                autoComplete="name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Your name"
+              />
             </div>
           )}
           <div className="col">
             <label>Email</label>
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+            <input
+              autoComplete="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
           </div>
           <div className="col">
             <label>Password</label>
-            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+            <input
+              autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
           </div>
           {mode === 'register' && (
             <div className="col">
@@ -95,11 +112,11 @@ export function LoginPage() {
         </div>
 
         <hr />
-        <span className="muted small">Demo logins (password: password123)</span>
+        <span className="muted small">Demo accounts (password: password123)</span>
         <div className="row wrap">
-          <button className="chip" onClick={() => quick('alice@ontheway.app')}>Customer</button>
-          <button className="chip" onClick={() => quick('biryani@ontheway.app')}>Merchant</button>
-          <button className="chip" onClick={() => quick('admin@ontheway.app')}>Admin</button>
+          <button className="chip" onClick={() => quick('demo.customer@ontheway.app')}>Demo customer</button>
+          <button className="chip" onClick={() => quick('demo.merchant@ontheway.app')}>Demo merchant</button>
+          <button className="chip" onClick={() => quick('demo.admin@ontheway.app')}>Demo admin</button>
         </div>
       </div>
     </div>

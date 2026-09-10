@@ -170,6 +170,22 @@ class EtaIntegrationTest {
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
         long orderId = objectMapper.readTree(orderBody).get("orderId").asLong();
 
+        // Route sharing starts only after the serving shop has accepted a paid order.
+        mockMvc.perform(post("/api/orders/" + orderId + "/location").header("Authorization", custToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(LocationUpdateDTO.builder().latitude(12.9916).longitude(77.6146).build())))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Live route timing starts once the shop accepts the order"));
+        mockMvc.perform(post("/api/payments").header("Authorization", custToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(PaymentCreateDTO.builder()
+                                .orderId(orderId).paymentMethod("CARD").build())))
+                .andExpect(status().isCreated());
+        mockMvc.perform(put("/api/orders/" + orderId + "/status").param("status", "ACCEPTED")
+                        .header("Authorization", merchantToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("ACCEPTED"));
+
         // Owner streams a closer position -> ETA recomputed and window returned.
         LocationUpdateDTO closer = LocationUpdateDTO.builder().latitude(12.9916).longitude(77.6146).build();
         mockMvc.perform(post("/api/orders/" + orderId + "/location").header("Authorization", custToken)
@@ -179,6 +195,13 @@ class EtaIntegrationTest {
                 .andExpect(jsonPath("$.readyAt").isNotEmpty())
                 .andExpect(jsonPath("$.etaEarliest").isNotEmpty())
                 .andExpect(jsonPath("$.etaLatest").isNotEmpty());
+
+        // ETA pings are historical location events, not a rewrite of the checkout
+        // origin. The route must remain drawable after the customer refreshes.
+        mockMvc.perform(get("/api/orders/" + orderId).header("Authorization", custToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.customerLatitude").value(13.0716))
+                .andExpect(jsonPath("$.customerLongitude").value(77.6946));
 
         // A different customer cannot stream location for this order (IDOR guard).
         String strangerToken = registerAndLogin("live-stranger@x.com", UserRole.USER);

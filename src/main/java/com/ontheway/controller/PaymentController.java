@@ -16,6 +16,13 @@ public class PaymentController {
 
     private final PaymentService paymentService;
 
+    /** Browser-safe provider information. Secrets and webhook configuration never leave the server. */
+    @PreAuthorize("hasRole('USER')")
+    @GetMapping("/provider")
+    public ResponseEntity<PaymentProviderConfigResponse> providerConfig() {
+        return ResponseEntity.ok(paymentService.paymentProviderConfig());
+    }
+
     /**
      * Create a new payment for the specified order.
      */

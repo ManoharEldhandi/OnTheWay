@@ -7,12 +7,15 @@ import com.ontheway.model.enums.OrderStatus;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.support.StaticListableBeanFactory;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDateTime;
 
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 class OrderRealtimeNotifierTest {
 
@@ -43,5 +46,38 @@ class OrderRealtimeNotifierTest {
                 && event.status() == OrderStatus.READY));
         verify(kafkaPublisher).publish(argThat(event -> event.orderId().equals(42L)
                 && event.pickupTime().equals(pickup)));
+    }
+
+    @Test
+    void waitsForTheDatabaseTransactionToCommitBeforeBroadcasting() {
+        OrderWebSocketHandler handler = mock(OrderWebSocketHandler.class);
+        KafkaOrderEventPublisher kafkaPublisher = mock(KafkaOrderEventPublisher.class);
+        StaticListableBeanFactory beanFactory = new StaticListableBeanFactory();
+        beanFactory.addBean("kafkaOrderEventPublisher", kafkaPublisher);
+        OrderRealtimeNotifier notifier = new OrderRealtimeNotifier(
+                handler, beanFactory.getBeanProvider(KafkaOrderEventPublisher.class));
+        Order order = Order.builder()
+                .orderId(42L)
+                .user(User.builder().userId(1L).build())
+                .merchant(Merchant.builder().merchantId(3L).user(User.builder().userId(2L).build()).build())
+                .status(OrderStatus.PLACED)
+                .pickupTime(LocalDateTime.of(2026, 7, 12, 12, 30))
+                .build();
+
+        TransactionSynchronizationManager.initSynchronization();
+        TransactionSynchronizationManager.setActualTransactionActive(true);
+        try {
+            notifier.publish("ORDER_ETA_CHANGED", order);
+            verifyNoInteractions(handler, kafkaPublisher);
+
+            TransactionSynchronizationManager.getSynchronizations()
+                    .forEach(TransactionSynchronization::afterCommit);
+
+            verify(handler).broadcast(argThat(event -> event.orderId().equals(42L)));
+            verify(kafkaPublisher).publish(argThat(event -> event.orderId().equals(42L)));
+        } finally {
+            TransactionSynchronizationManager.clearSynchronization();
+            TransactionSynchronizationManager.setActualTransactionActive(false);
+        }
     }
 }

@@ -20,6 +20,18 @@ public interface OrderService {
     OrderResponseDTO updateOrderStatus(Long orderId, String status, String callerEmail);
 
     /**
+     * Merchant-facing acceptance flow. A paid placed order is accepted and moved straight into
+     * preparation as one atomic action, while retaining both transitions in the audit history.
+     */
+    OrderResponseDTO acceptAndStartPreparation(Long orderId, String callerEmail);
+
+    /** Customer cancellation before work begins. Completed mock/real payments are refunded. */
+    OrderResponseDTO cancelOrder(Long orderId, String callerEmail);
+
+    /** Merchant hand-off after validating the pickup code shown on the customer order screen. */
+    OrderResponseDTO confirmPickup(Long orderId, String pickupCode, String callerEmail);
+
+    /**
      * Records the customer's current position for an active order and recomputes the live ETA
      * (ready time, prep start, and the traffic-aware arrival window). Only the order's owner may
      * call this, and only while the order has not yet been picked up or cancelled.

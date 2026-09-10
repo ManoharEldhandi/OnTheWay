@@ -3,8 +3,10 @@ package com.ontheway.fulfillment;
 import com.ontheway.model.Order;
 import com.ontheway.model.OrderEvent;
 import com.ontheway.model.enums.OrderStatus;
+import com.ontheway.model.enums.PaymentStatus;
 import com.ontheway.repository.OrderEventRepository;
 import com.ontheway.repository.OrderRepository;
+import com.ontheway.repository.PaymentRepository;
 import com.ontheway.realtime.OrderRealtimeNotifier;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,8 +20,8 @@ import java.util.List;
 
 /**
  * Makes the ETA promise self-driving: automatically moves an order from
- * {@code PLACED} to {@code PREPARING} once its computed {@code prepStartAt} arrives — so the
- * store starts cooking at exactly the right moment without anyone clicking.
+ * {@code ACCEPTED} to {@code PREPARING} once its computed {@code prepStartAt} arrives — so the
+ * store starts cooking at exactly the right moment, but only after the shop has accepted it.
  *
  * <p>The scan logic is extracted into {@link #advanceDueOrders()} so it can be unit-tested
  * deterministically with an injected {@link Clock}.
@@ -32,6 +34,7 @@ public class OrderProgressionScheduler {
 
     private final OrderRepository orderRepository;
     private final OrderEventRepository orderEventRepository;
+    private final PaymentRepository paymentRepository;
     private final OrderRealtimeNotifier realtimeNotifier;
     private final Clock clock;
 
@@ -45,22 +48,25 @@ public class OrderProgressionScheduler {
     }
 
     /**
-     * Moves every PLACED order whose {@code prepStartAt} has arrived into PREPARING,
+     * Moves every ACCEPTED order whose {@code prepStartAt} has arrived into PREPARING,
      * recording an audit event. Returns the number of orders advanced.
      */
     public int advanceDueOrders() {
         LocalDateTime now = LocalDateTime.now(clock);
         List<Order> due = orderRepository
-                .findByStatusAndPrepStartAtLessThanEqual(OrderStatus.PLACED, now);
+                .findByStatusAndPrepStartAtLessThanEqual(OrderStatus.ACCEPTED, now);
 
         int advanced = 0;
         for (Order order : due) {
-            if (order.getStatus().canTransitionTo(OrderStatus.PREPARING)) {
+            boolean paid = paymentRepository.findByOrderOrderId(order.getOrderId())
+                    .map(payment -> payment.getPaymentStatus() == PaymentStatus.COMPLETED)
+                    .orElse(false);
+            if (paid && order.getStatus().canTransitionTo(OrderStatus.PREPARING)) {
                 order.setStatus(OrderStatus.PREPARING);
                 orderRepository.save(order);
                 orderEventRepository.save(OrderEvent.builder()
                         .order(order)
-                        .fromStatus(OrderStatus.PLACED)
+                        .fromStatus(OrderStatus.ACCEPTED)
                         .toStatus(OrderStatus.PREPARING)
                         .changedBy("system:scheduler")
                         .reason("Auto-started preparation at scheduled prep time")

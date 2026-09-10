@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+# Starts the complete local OnTheWay application: Spring Boot + Vite.
+# Usage: ./scripts/start local | ./scripts/start network
+set -euo pipefail
+
+MODE="${1:-local}"
+BACKEND_PORT="${BACKEND_PORT:-8080}"
+FRONTEND_PORT="${FRONTEND_PORT:-5173}"
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+if [[ "$MODE" != "local" && "$MODE" != "network" ]]; then
+  echo "Usage: ./scripts/start [local|network]"
+  exit 2
+fi
+
+if ! command -v mvn >/dev/null 2>&1 || ! command -v npm >/dev/null 2>&1; then
+  echo "Java 17/Maven and Node/npm are required. See docs/USAGE.md for prerequisites."
+  exit 1
+fi
+
+if command -v lsof >/dev/null 2>&1 && lsof -tiTCP:"$BACKEND_PORT" -sTCP:LISTEN >/dev/null 2>&1; then
+  echo "Port $BACKEND_PORT is already in use. Stop that server or run BACKEND_PORT=8081 ./scripts/start $MODE."
+  exit 1
+fi
+if command -v lsof >/dev/null 2>&1 && lsof -tiTCP:"$FRONTEND_PORT" -sTCP:LISTEN >/dev/null 2>&1; then
+  echo "Port $FRONTEND_PORT is already in use. Stop that server or run FRONTEND_PORT=5174 ./scripts/start $MODE."
+  exit 1
+fi
+
+HOST="127.0.0.1"
+LAN_IP=""
+if [[ "$MODE" == "network" ]]; then
+  HOST="0.0.0.0"
+  LAN_IP="$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || hostname -I 2>/dev/null | awk '{print $1}' || true)"
+  if [[ -z "$LAN_IP" ]]; then
+    echo "Could not determine a LAN IP automatically. The server will still listen on your network interfaces."
+  fi
+fi
+
+if [[ ! -d "$PROJECT_ROOT/frontend/node_modules/qrcode.react" ]]; then
+  echo "Installing frontend dependencies…"
+  (cd "$PROJECT_ROOT/frontend" && npm install)
+fi
+
+MAVEN_SETTINGS=()
+if [[ -f "$PROJECT_ROOT/custom-m2/settings.xml" ]]; then
+  MAVEN_SETTINGS=(-s "$PROJECT_ROOT/custom-m2/settings.xml")
+fi
+mkdir -p "$PROJECT_ROOT/target"
+BACKEND_LOG="$PROJECT_ROOT/target/ontheway-local-backend.log"
+CORS_ORIGINS="http://localhost:$FRONTEND_PORT,http://127.0.0.1:$FRONTEND_PORT"
+if [[ -n "$LAN_IP" ]]; then
+  CORS_ORIGINS="$CORS_ORIGINS,http://$LAN_IP:$FRONTEND_PORT"
+fi
+
+echo "Starting OnTheWay backend…"
+(
+  cd "$PROJECT_ROOT"
+  SERVER_PORT="$BACKEND_PORT" CORS_ALLOWED_ORIGINS="$CORS_ORIGINS" \
+    mvn "${MAVEN_SETTINGS[@]}" spring-boot:run -Dspring-boot.run.profiles=demo >"$BACKEND_LOG" 2>&1
+) &
+BACKEND_PID=$!
+
+cleanup() {
+  kill "$BACKEND_PID" 2>/dev/null || true
+}
+trap cleanup EXIT INT TERM
+
+echo "OnTheWay is starting. Backend logs: target/ontheway-local-backend.log"
+if [[ "$MODE" == "network" && -n "$LAN_IP" ]]; then
+  echo "Open on this computer: http://localhost:$FRONTEND_PORT"
+  echo "Open on this network:  http://$LAN_IP:$FRONTEND_PORT"
+else
+  echo "Open: http://localhost:$FRONTEND_PORT"
+fi
+echo "Press Ctrl-C once to stop both frontend and backend."
+
+cd "$PROJECT_ROOT/frontend"
+VITE_API_TARGET="http://127.0.0.1:$BACKEND_PORT" npm run dev -- --host "$HOST" --port "$FRONTEND_PORT" --strictPort

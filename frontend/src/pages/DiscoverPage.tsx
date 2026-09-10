@@ -6,8 +6,7 @@ import { getLocation, LOCATION_PRESETS, setLocation } from '../location';
 import type { Coordinates, SearchResult, StoreDiscovery, StoreType } from '../types';
 
 const CATEGORIES: (StoreType | 'ALL')[] = [
-  'ALL', 'RESTAURANT', 'FAST_FOOD', 'CAFE', 'BAKERY', 'PHARMACY', 'MEDICAL',
-  'GROCERY', 'SUPERMARKET', 'HOTEL', 'BOOKSTORE', 'ELECTRONICS', 'HARDWARE', 'FLORIST', 'PET_STORE', 'RETAIL',
+  'ALL', 'CAFE', 'RESTAURANT', 'PHARMACY', 'GROCERY', 'ELECTRONICS',
 ];
 
 type Sort = 'relevance' | 'distance' | 'price';
@@ -29,6 +28,7 @@ export function DiscoverPage() {
   const [selected, setSelected] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [visibleLimit, setVisibleLimit] = useState(5);
 
   const searching = query.trim().length > 0;
 
@@ -64,6 +64,11 @@ export function DiscoverPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [coords, radiusKm, category, query, sort]);
 
+  // Keep the nearby experience browsable even when a wide radius returns the
+  // complete catalogue. A user can deliberately request more results instead
+  // of being handed an endless, unusable vertical column.
+  useEffect(() => setVisibleLimit(5), [coords, radiusKm, category, query, sort]);
+
   function pickPreset(c: Coordinates) {
     setLocation(c);
     setCoords(c);
@@ -81,38 +86,36 @@ export function DiscoverPage() {
     ? dedupeShops(results)
     : stores;
   const visibleCount = searching ? results.length : stores.length;
+  const visibleStores = stores.slice(0, visibleLimit);
+  const visibleResults = results.slice(0, visibleLimit);
 
   return (
-    <div className="col">
-      <section className="page-head">
-        <div className="hero-block motion-line">
-          <span className="kicker">Customer command / live pickup</span>
-          <h1 className="title">Find the thing, not just the shop.</h1>
-          <p className="sub">Search across shops and items, compare price and distance, then order against a live ETA window.</p>
+    <main className="customer-discover col">
+      <section className="discover-intro">
+        <div>
+          <span className="kicker">Nearby pickup</span>
+          <h1>What are you picking up today?</h1>
+          <p>Browse food, pharmacy, groceries, and everyday essentials around your selected location.</p>
         </div>
-        <div className="hero-panel">
-          <span className="kicker">Showing now</span>
-          <div className="value">{loading ? '...' : visibleCount}</div>
-          <div className="row wrap">
-            <span className="badge">{category === 'ALL' ? 'all verticals' : label(category)}</span>
-            <span className="badge info">{radiusKm} km radius</span>
-            {searching && <span className="badge steel">sort {sort}</span>}
-          </div>
+        <div className="discover-count" aria-live="polite">
+          <span>{loading ? 'Finding shops' : `${visibleCount} places nearby`}</span>
+          <small>{category === 'ALL' ? 'All categories' : label(category)} · {radiusKm} km</small>
         </div>
       </section>
 
-      <div className="card col motion-line">
+      <section className="discovery-command card">
         {/* Search bar over shops AND items */}
-        <div className="row">
+        <div className="discover-search row">
           <input
-            placeholder="Search items or shops (e.g. biryani, paracetamol, MedPlus)…"
+            aria-label="Search shops and items"
+            placeholder="Search biryani, paracetamol, coffee, groceries…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
           {searching && <button className="ghost" onClick={() => setQuery('')}>Clear</button>}
         </div>
 
-        <div className="filters-grid">
+        <div className="filters-grid discover-filters">
           <div className="col">
             <label>Your location</label>
             <div className="row wrap">
@@ -133,8 +136,7 @@ export function DiscoverPage() {
           </div>
         </div>
 
-        {/* Vertical picker */}
-        <div className="row wrap">
+        <div className="discover-category-row" aria-label="Store categories">
           {CATEGORIES.map((c) => (
             <button key={c} className={`chip ${category === c ? 'active' : ''}`} onClick={() => setCategory(c)}>
               {label(c)}
@@ -142,9 +144,8 @@ export function DiscoverPage() {
           ))}
         </div>
 
-        {/* Sort (only meaningful while searching) */}
         {searching && (
-          <div className="row wrap">
+          <div className="row wrap discover-sort">
             <span className="muted small">Sort by</span>
             {(['relevance', 'distance', 'price'] as Sort[]).map((s) => (
               <button key={s} className={`chip ${sort === s ? 'active' : ''}`} onClick={() => setSort(s)}>
@@ -153,40 +154,50 @@ export function DiscoverPage() {
             ))}
           </div>
         )}
-      </div>
+      </section>
 
       {error && <div className="error">{error}</div>}
-      {loading && <div className="card muted mono">Searching...</div>}
-
-      <div className="discovery-grid">
-        <MapView center={coords} stores={markers} selectedId={selected} onSelect={setSelected} />
-
-        <div className="col">
-          {searching ? (
-            <SearchResults results={results} loading={loading}
-              onOpen={(id) => navigate(`/store/${id}`)} selected={selected} onSelect={setSelected} />
-          ) : (
-            <StoreResults stores={stores} loading={loading} radiusKm={radiusKm}
-              onOpen={(id) => navigate(`/store/${id}`)} selected={selected} onSelect={setSelected} />
-          )}
+      <section className="discovery-map-section">
+        <div className="map-section-heading">
+          <div><span className="kicker">Explore the area</span><strong>Shops around your pickup point</strong></div>
+          <span className="map-key"><i /> Your location · <b /> Selected shop</span>
         </div>
-      </div>
-    </div>
+        <MapView center={coords} stores={markers} selectedId={selected} onSelect={setSelected}
+          onOpen={(merchantId) => navigate(`/store/${merchantId}`)} height={420} />
+      </section>
+
+      <section className="discover-results-section">
+        <div className="map-section-heading">
+          <div><span className="kicker">{searching ? 'Search matches' : 'Ready for pickup'}</span><strong>{loading ? 'Refreshing nearby shops…' : `${visibleCount} ${searching ? 'matches' : 'places to explore'}`}</strong></div>
+          {!loading && visibleCount > visibleLimit && <span className="muted small">Showing {Math.min(visibleLimit, visibleCount)} of {visibleCount}</span>}
+        </div>
+        {loading && <div className="discover-loading">Finding the closest options…</div>}
+        {searching ? (
+          <SearchResults results={visibleResults} allCount={results.length} loading={loading}
+            onOpen={(id) => navigate(`/store/${id}`)} selected={selected} onSelect={setSelected}
+            onMore={() => setVisibleLimit((limit) => limit + 12)} />
+        ) : (
+          <StoreResults stores={visibleStores} allCount={stores.length} loading={loading} radiusKm={radiusKm}
+            onOpen={(id) => navigate(`/store/${id}`)} selected={selected} onSelect={setSelected}
+            onMore={() => setVisibleLimit((limit) => limit + 12)} />
+        )}
+      </section>
+    </main>
   );
 }
 
-function StoreResults({ stores, loading, radiusKm, onOpen, selected, onSelect }: {
-  stores: StoreDiscovery[]; loading: boolean; radiusKm: number;
-  onOpen: (id: number) => void; selected: number | null; onSelect: (id: number) => void;
+function StoreResults({ stores, allCount, loading, radiusKm, onOpen, selected, onSelect, onMore }: {
+  stores: StoreDiscovery[]; allCount: number; loading: boolean; radiusKm: number;
+  onOpen: (id: number) => void; selected: number | null; onSelect: (id: number) => void; onMore: () => void;
 }) {
   if (!loading && stores.length === 0) {
     return <div className="card muted">No shops within {radiusKm} km. Try a wider radius.</div>;
   }
-  return (
-    <>
+  return (<>
+    <div className="store-results-grid">
       {stores.map((s) => (
         <div key={s.merchantId}
-          className={`card col selectable ${selected === s.merchantId ? 'selected' : ''}`}
+          className={`store-result-card selectable ${selected === s.merchantId ? 'selected' : ''}`}
           onClick={() => onSelect(s.merchantId)}>
           <div className="spread">
             <strong>{s.storeName}</strong>
@@ -201,22 +212,23 @@ function StoreResults({ stores, loading, radiusKm, onOpen, selected, onSelect }:
           <button className="primary" onClick={() => onOpen(s.merchantId)}>Open menu</button>
         </div>
       ))}
-    </>
-  );
+    </div>
+    {stores.length < allCount && <button className="show-more" onClick={onMore}>Show more places</button>}
+  </>);
 }
 
-function SearchResults({ results, loading, onOpen, selected, onSelect }: {
-  results: SearchResult[]; loading: boolean;
-  onOpen: (id: number) => void; selected: number | null; onSelect: (id: number) => void;
+function SearchResults({ results, allCount, loading, onOpen, selected, onSelect, onMore }: {
+  results: SearchResult[]; allCount: number; loading: boolean;
+  onOpen: (id: number) => void; selected: number | null; onSelect: (id: number) => void; onMore: () => void;
 }) {
   if (!loading && results.length === 0) {
     return <div className="card muted">No items found. Try a different term or a wider radius.</div>;
   }
-  return (
-    <>
+  return (<>
+    <div className="store-results-grid">
       {results.map((r) => (
         <div key={r.menuItemId}
-          className={`card col selectable ${selected === r.merchantId ? 'selected' : ''}`}
+          className={`store-result-card selectable ${selected === r.merchantId ? 'selected' : ''}`}
           onClick={() => onSelect(r.merchantId)}>
           <div className="spread">
             <strong>{r.itemName}</strong>
@@ -232,8 +244,9 @@ function SearchResults({ results, loading, onOpen, selected, onSelect }: {
           <button className="primary" onClick={() => onOpen(r.merchantId)}>Open shop</button>
         </div>
       ))}
-    </>
-  );
+    </div>
+    {results.length < allCount && <button className="show-more" onClick={onMore}>Show more matches</button>}
+  </>);
 }
 
 /** Collapses item search results to unique shops for the map markers. */

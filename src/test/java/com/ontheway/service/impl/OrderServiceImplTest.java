@@ -7,6 +7,7 @@ import com.ontheway.exception.BadRequestException;
 import com.ontheway.exception.ForbiddenException;
 import com.ontheway.model.*;
 import com.ontheway.model.enums.OrderStatus;
+import com.ontheway.model.enums.PaymentStatus;
 import com.ontheway.model.enums.UserRole;
 import com.ontheway.repository.*;
 import org.junit.jupiter.api.BeforeEach;
@@ -34,6 +35,9 @@ class OrderServiceImplTest {
     @Mock private MenuItemRepository menuItemRepository;
     @Mock private OrderItemRepository orderItemRepository;
     @Mock private OrderEventRepository orderEventRepository;
+    @Mock private LocationRepository locationRepository;
+    @Mock private PaymentRepository paymentRepository;
+    @Mock private com.ontheway.service.PaymentService paymentService;
     @Mock private com.ontheway.fulfillment.EtaService etaService;
         @Mock private com.ontheway.realtime.OrderRealtimeNotifier realtimeNotifier;
     @InjectMocks private OrderServiceImpl orderService;
@@ -136,7 +140,7 @@ class OrderServiceImplTest {
         when(orderRepository.findById(50L)).thenReturn(Optional.of(order));
         when(userRepository.findByEmailIgnoreCase("other@x.com")).thenReturn(Optional.of(otherMerchUser));
 
-        assertThatThrownBy(() -> orderService.updateOrderStatus(50L, "PREPARING", "other@x.com"))
+        assertThatThrownBy(() -> orderService.updateOrderStatus(50L, "ACCEPTED", "other@x.com"))
                 .isInstanceOf(ForbiddenException.class);
     }
 
@@ -159,12 +163,31 @@ class OrderServiceImplTest {
                 .orderTime(LocalDateTime.now()).pickupTime(LocalDateTime.now()).build();
         when(orderRepository.findById(50L)).thenReturn(Optional.of(order));
         when(userRepository.findByEmailIgnoreCase("merch@x.com")).thenReturn(Optional.of(merchantUser));
+        when(paymentRepository.findByOrderOrderId(50L)).thenReturn(Optional.of(Payment.builder()
+                .paymentStatus(PaymentStatus.COMPLETED).build()));
         when(orderRepository.save(any(Order.class))).thenAnswer(i -> i.getArgument(0));
 
-        OrderResponseDTO result = orderService.updateOrderStatus(50L, "PREPARING", "merch@x.com");
+        OrderResponseDTO result = orderService.updateOrderStatus(50L, "ACCEPTED", "merch@x.com");
 
-        assertThat(result.getStatus()).isEqualTo(OrderStatus.PREPARING);
+        assertThat(result.getStatus()).isEqualTo(OrderStatus.ACCEPTED);
         verify(orderEventRepository).save(argThat(e ->
-                e.getFromStatus() == OrderStatus.PLACED && e.getToStatus() == OrderStatus.PREPARING));
+                e.getFromStatus() == OrderStatus.PLACED && e.getToStatus() == OrderStatus.ACCEPTED));
+    }
+
+    @Test
+    void cancelOrder_byOwnerRefundsCompletedPaymentBeforePreparation() {
+        Order order = Order.builder().orderId(50L).user(customer).merchant(merchant)
+                .status(OrderStatus.PLACED).items(List.of()).totalAmount(15.0)
+                .orderTime(LocalDateTime.now()).pickupTime(LocalDateTime.now()).build();
+        when(orderRepository.findById(50L)).thenReturn(Optional.of(order));
+        when(userRepository.findByEmailIgnoreCase("cust@x.com")).thenReturn(Optional.of(customer));
+        when(orderRepository.save(any(Order.class))).thenAnswer(i -> i.getArgument(0));
+
+        OrderResponseDTO result = orderService.cancelOrder(50L, "cust@x.com");
+
+        assertThat(result.getStatus()).isEqualTo(OrderStatus.CANCELLED);
+        verify(paymentService).refundCompletedPaymentForOrder(50L);
+        verify(orderEventRepository).save(argThat(e ->
+                e.getFromStatus() == OrderStatus.PLACED && e.getToStatus() == OrderStatus.CANCELLED));
     }
 }

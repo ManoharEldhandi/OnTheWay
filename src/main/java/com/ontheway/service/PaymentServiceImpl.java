@@ -12,6 +12,7 @@ import com.ontheway.model.enums.PaymentStatus;
 import com.ontheway.model.enums.UserRole;
 import com.ontheway.payment.ChargeResult;
 import com.ontheway.payment.PaymentGateway;
+import com.ontheway.realtime.OrderRealtimeNotifier;
 import com.ontheway.repository.*;
 import com.ontheway.service.PaymentService;
 import com.ontheway.util.Money;
@@ -32,6 +33,7 @@ public class PaymentServiceImpl implements PaymentService {
     private final UserRepository userRepository;
     private final PaymentGateway paymentGateway;
     private final ObjectMapper objectMapper;
+    private final OrderRealtimeNotifier realtimeNotifier;
 
     @Transactional
     @Override
@@ -42,32 +44,63 @@ public class PaymentServiceImpl implements PaymentService {
                 .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
         assertOwnsOrder(order, callerEmail);
 
-        // Idempotency: an order has at most one payment.
-        if (paymentRepository.findByOrderOrderId(order.getOrderId()).isPresent()) {
-            throw new ConflictException("This order has already been paid");
+        // One payment record belongs to an order. A completed/pending/refunded record must never
+        // be charged again, while a failed attempt is safe to retry through the same record.
+        Payment payment = paymentRepository.findByOrderOrderId(order.getOrderId()).orElse(null);
+        if (payment != null && payment.getPaymentStatus() != PaymentStatus.FAILED) {
+            throw new ConflictException("This order already has a "
+                    + payment.getPaymentStatus().name().toLowerCase(Locale.ROOT) + " payment");
         }
+
+        int attempt = payment == null ? 1 : Math.max(1, payment.getAttemptCount() == null
+                ? 1 : payment.getAttemptCount()) + 1;
 
         // Charge through the configured gateway; the gateway decides the outcome,
         // never the client.
-        String idempotencyKey = "order-" + order.getOrderId();
-        ChargeResult result = paymentGateway.charge(
-                order.getOrderId(), order.getTotalAmount(), dto.getPaymentMethod(), idempotencyKey);
+        String idempotencyKey = "order-" + order.getOrderId() + "-attempt-" + attempt;
+        ChargeResult result;
+        String failureReason = null;
+        try {
+            result = paymentGateway.charge(
+                    order.getOrderId(), order.getTotalAmount(), dto.getPaymentMethod(), idempotencyKey);
+        } catch (RuntimeException ex) {
+            // Provider configuration/outages become a retryable, customer-visible failed attempt
+            // instead of a hidden server error after an order was already created.
+            result = new ChargeResult(false, "gateway_error", paymentGateway.name(), PaymentStatus.FAILED);
+            failureReason = "The payment could not be completed. Please try again.";
+        }
 
-        Payment payment = Payment.builder()
-                .order(order)
-                .paymentMethod(dto.getPaymentMethod())
-                .amount(order.getTotalAmount())
-                .amountMinor(order.getTotalAmountMinor() != null
-                    ? order.getTotalAmountMinor() : Money.toMinor(order.getTotalAmount()))
-                .currency(order.getCurrency() != null ? order.getCurrency() : Money.DEFAULT_CURRENCY)
-                .paymentStatus(result.status())
-                .gateway(result.gateway())
-                .gatewayReference(result.reference())
-                .paymentTime(LocalDateTime.now())
-                .build();
+        if (payment == null) {
+            payment = Payment.builder()
+                    .order(order)
+                    .amount(order.getTotalAmount())
+                    .amountMinor(order.getTotalAmountMinor() != null
+                        ? order.getTotalAmountMinor() : Money.toMinor(order.getTotalAmount()))
+                    .currency(order.getCurrency() != null ? order.getCurrency() : Money.DEFAULT_CURRENCY)
+                    .build();
+        }
+        payment.setPaymentMethod(dto.getPaymentMethod());
+        payment.setPaymentStatus(result.status());
+        payment.setGateway(result.gateway());
+        payment.setGatewayReference(result.reference());
+        payment.setPaymentTime(LocalDateTime.now());
+        payment.setAttemptCount(attempt);
+        payment.setFailureReason(result.status() == PaymentStatus.FAILED
+                ? (failureReason != null ? failureReason : "The payment was declined. Please try another method.")
+                : null);
         paymentRepository.save(payment);
+        publishPaymentUpdate(payment);
 
         return toResponseDTO(payment);
+    }
+
+    @Override
+    public PaymentProviderConfigResponse paymentProviderConfig() {
+        String provider = paymentGateway.name();
+        return new PaymentProviderConfigResponse(
+                provider,
+                "mock".equalsIgnoreCase(provider),
+                paymentGateway.publicCheckoutKey());
     }
 
     @Override
@@ -86,6 +119,7 @@ public class PaymentServiceImpl implements PaymentService {
         PaymentStatus next = parseStatus(status);
         if (applyStatus(payment, next)) {
             paymentRepository.save(payment);
+            publishPaymentUpdate(payment);
         }
     }
 
@@ -94,6 +128,20 @@ public class PaymentServiceImpl implements PaymentService {
     public PaymentResponseDTO refundPayment(Long paymentId) {
         Payment payment = paymentRepository.findById(paymentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Payment not found"));
+        refundCompletedPayment(payment);
+        return toResponseDTO(payment);
+    }
+
+    @Transactional
+    @Override
+    public void refundCompletedPaymentForOrder(Long orderId) {
+        Payment payment = paymentRepository.findByOrderOrderId(orderId).orElse(null);
+        if (payment != null && payment.getPaymentStatus() == PaymentStatus.COMPLETED) {
+            refundCompletedPayment(payment);
+        }
+    }
+
+    private void refundCompletedPayment(Payment payment) {
         if (payment.getPaymentStatus() != PaymentStatus.COMPLETED) {
             throw new BadRequestException("Only completed payments can be refunded");
         }
@@ -103,7 +151,7 @@ public class PaymentServiceImpl implements PaymentService {
         boolean refunded;
         try {
             refunded = paymentGateway.refund(payment.getOrder().getOrderId(),
-                    payment.getGatewayReference(), payment.getAmount(), "refund-" + paymentId);
+                    payment.getGatewayReference(), payment.getAmount(), "refund-" + payment.getPaymentId());
         } catch (UnsupportedOperationException ex) {
             throw new BadRequestException("Refunds are not supported by this payment gateway");
         }
@@ -112,7 +160,7 @@ public class PaymentServiceImpl implements PaymentService {
         }
         payment.setPaymentStatus(PaymentStatus.REFUNDED);
         paymentRepository.save(payment);
-        return toResponseDTO(payment);
+        publishPaymentUpdate(payment);
     }
 
     @Transactional
@@ -154,6 +202,7 @@ public class PaymentServiceImpl implements PaymentService {
                 }
             }
             paymentRepository.save(payment);
+            publishPaymentUpdate(payment);
         }
     }
 
@@ -196,6 +245,8 @@ public class PaymentServiceImpl implements PaymentService {
                 .gateway(payment.getGateway())
                 .gatewayReference(payment.getGatewayReference())
                 .paymentTime(payment.getPaymentTime())
+                .attemptCount(payment.getAttemptCount() == null ? 1 : payment.getAttemptCount())
+                .failureReason(payment.getFailureReason())
                 .build();
     }
 
@@ -259,6 +310,14 @@ public class PaymentServiceImpl implements PaymentService {
         } catch (IllegalArgumentException ex) {
             throw new BadRequestException("Unknown payment status: " + value);
         }
+    }
+
+    /**
+     * Payment completion is an order-level event for the customer and serving merchant. This is
+     * what lets an already-open merchant queue unlock "Mark preparing" without a refresh.
+     */
+    private void publishPaymentUpdate(Payment payment) {
+        realtimeNotifier.publish("PAYMENT_" + payment.getPaymentStatus().name(), payment.getOrder());
     }
 
     /**

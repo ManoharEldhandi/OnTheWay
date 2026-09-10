@@ -43,4 +43,10 @@ public class PaymentResponseDTO {
 
     @JsonProperty("paymentTime")
     private LocalDateTime paymentTime;
+
+    @JsonProperty("attemptCount")
+    private Integer attemptCount;
+
+    @JsonProperty("failureReason")
+    private String failureReason;
 }

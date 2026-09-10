@@ -9,7 +9,7 @@ A `PaymentGateway` abstraction (mirrors the `RouteProvider` pattern):
 
 - **`MockPaymentGateway`** (default, `ontheway.payment.provider=mock`): keyless, deterministic;
   approves any positive charge and returns a synthetic reference. Lets the whole order→pay
-  flow be demoed and tested with no credentials.
+  flow be exercised and tested with no credentials.
 - **Stripe** and **Razorpay** adapters are included behind the same interface and selected by
   configuration — no caller changes.
 
@@ -26,8 +26,9 @@ POST /api/payments  { orderId, paymentMethod }
 
 - The **gateway** decides the outcome; the client can never set payment status.
 - **Amount** comes from the order total, not the request.
-- **Idempotency**: an order has at most one payment; a second attempt returns `409 Conflict`
-  (creation is serialized per order and an idempotency key is passed to the gateway).
+- **Idempotency and recovery**: an order has one payment record. A completed, pending, or refunded
+  record cannot be charged again; a `FAILED` payment may be retried safely with a new gateway
+  idempotency key and an incremented attempt count.
 - **Ownership**: only the order's owner may pay; others get `403`.
 - **Monotonic state**: delayed webhooks cannot regress a completed or refunded payment.
 - **Signed webhooks**: the route provider must match the configured gateway before its signature
@@ -40,15 +41,20 @@ The response now exposes `gateway` and `gatewayReference` alongside `paymentStat
 
 ## Frontend
 
-Checkout pays the order through the gateway immediately after placing it; the order page shows
-a **payment badge** (e.g. `COMPLETED · via mock`).
+Checkout pays the order through the gateway immediately after placing it. In mock/local mode the
+customer can explicitly choose UPI/card success or a deterministic decline and retry. The order
+page shows the payment state, attempt count, recovery action, and provider badge.
+
+Acceptance and preparation are payment-gated: the normal merchant action atomically accepts a paid order and
+starts preparation, while neither that flow nor the ETA scheduler can move an unpaid order to `PREPARING`.
+Customer cancellation while still `PLACED` refunds a completed payment.
 
 ## Tests
 
 | Test | Proves |
 |---|---|
 | `PaymentServiceImplTest` | Gateway charge → COMPLETED; decline → FAILED; idempotency → 409; non-owner → 403. |
-| `PaymentIntegrationTest` | End-to-end pay → COMPLETED via mock; second charge → 409; non-owner → 403. |
+| `PaymentIntegrationTest` | End-to-end pay → COMPLETED via mock; completed second charge → 409; non-owner → 403. |
 
 ## Configuration
 

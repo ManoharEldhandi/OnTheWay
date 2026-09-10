@@ -1,40 +1,36 @@
-# Product UI Redesign
+# Product interface
 
-The frontend now uses a stronger product visual system: Swiss grid structure, raw black/white surfaces,
-a yellow signal color, and cyan/blue complementary accents for motion, focus, and hover states.
+The OnTheWay interface is built around a calm, high-contrast operational system: neutral surfaces, one focused blue action color, precise typography, and explicit status language. It is designed to make route-aware pickup understandable at a glance rather than to look like a decorative marketplace.
 
 ## Direction
 
-- **Black/white/yellow** is the core palette; yellow is reserved for primary action and system signal.
-- **Complementary cyan/blue** appears in focus rings, shadows, and hover motion so the UI feels alive
-  without becoming a purple/gradient dashboard.
-- **Swiss-style hierarchy**: large direct headlines, mono labels, metric tiles, hard borders, and
-  clear grids.
-- **Raw/anti-polish aesthetic**: square geometry, offset shadows, visible structure, no soft SaaS
-  blur cards or generic gradients.
+- **Quiet, legible surfaces**: white and soft-gray panels let order state, maps, and timing data carry the visual emphasis.
+- **Purposeful blue and orange**: blue communicates navigation and action; orange is reserved for the active pickup route and vehicle movement.
+- **Map-first customer layout**: discovery starts with nearby shops on a large, usable neighborhood map; cards complement the map instead of forming an endless feed.
+- **Operational merchant layout**: a compact queue emphasizes paid state, preparation status, ETA, and the next legal action.
+- **Accessible feedback**: meaningful labels accompany color, transient notifications never pile up, and the alert centre retains actionable history.
 
 ## Role-specific surfaces
 
 ### Customer
-- Command-center discovery hero.
-- Search across items and shops.
-- Visible count/radius/vertical summary.
-- Default radius widened to 20 km so the demo starts populated.
-- Checkout and order tracking show live ETA windows in the same visual language.
+
+- Nearby-shop discovery with search, radius, category filters, and map pins that open the relevant menu.
+- Transparent ETA checkout showing travel, traffic allowance, preparation duration, target readiness, and the arrival window.
+- A customer-only route surface with a smoothly animated vehicle, live order status, pickup progress, and active-order chat.
 
 ### Merchant
-- Multi-shop operations board.
-- Metrics for approved, pending, blocked shops.
-- Menu control board with item/in-stock/out-of-stock counts.
-- Order queue board with active/preparing/ready/closed metrics.
 
-### Admin
-- Marketplace control-room overview.
-- Metrics rendered as sharp tiles.
-- Approval queue and shop moderation use the same command-board treatment.
+- Multi-shop management for menus, stock, pricing, and shop applications.
+- A live order queue that begins preparation when a paid order is accepted.
+- Privacy-aware arrival signals: en route, approaching, and arrived. The merchant receives timing only, never a customer route or coordinates.
+
+### Administrator
+
+- Marketplace oversight with approval, moderation, and status controls.
+- Shared visual language for counts, status, and next actions across the operating surfaces.
 
 ## Verification
 
-- `npm run build` passes after the redesign.
-- Browser-smoked in demo mode at `http://127.0.0.1:5173` across customer, merchant, and admin dashboards.
-- Fixed a real CORS gap: default and demo profiles now include `http://127.0.0.1:5173` in allowed origins.
+- `npm run build` validates strict TypeScript and produces the production client bundle.
+- Browser verification covers customer discovery, checkout, live route tracking, merchant acceptance, live ETA status, realtime notifications, and order chat.
+- The local and network launch modes use explicit CORS origins so the same product flow works on a second device without proxy changes.

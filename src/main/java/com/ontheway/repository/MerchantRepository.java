@@ -8,12 +8,16 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface MerchantRepository extends JpaRepository<Merchant, Long> {
 
     /** All shops owned by a user (one owner can operate many shops). */
     List<Merchant> findByUser_UserId(Long userId);
     boolean existsByUser_UserId(Long userId);
+
+    /** Used by the demo seed to make named walkthrough shops safe to add on every demo boot. */
+    Optional<Merchant> findByStoreNameIgnoreCase(String storeName);
 
     /** Shops in a given status (e.g. the admin's pending-approval queue). */
     List<Merchant> findByStatus(MerchantStatus status);

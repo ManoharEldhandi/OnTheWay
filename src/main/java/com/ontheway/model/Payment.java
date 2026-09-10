@@ -52,6 +52,15 @@ public class Payment {
     @Column(nullable = false)
     private LocalDateTime paymentTime;
 
+    /** Number of gateway charge attempts for this order. Failed demo/real charges may be retried. */
+    @Column(name = "attempt_count", nullable = false)
+    @Builder.Default
+    private Integer attemptCount = 1;
+
+    /** Safe, customer-displayable explanation for the most recent failed attempt. */
+    @Column(name = "failure_reason", length = 255)
+    private String failureReason;
+
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;

@@ -11,6 +11,7 @@ import com.ontheway.model.enums.PaymentStatus;
 import com.ontheway.model.enums.UserRole;
 import com.ontheway.payment.ChargeResult;
 import com.ontheway.payment.PaymentGateway;
+import com.ontheway.realtime.OrderRealtimeNotifier;
 import com.ontheway.repository.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -34,6 +35,7 @@ class PaymentServiceImplTest {
     @Mock private OrderRepository orderRepository;
     @Mock private UserRepository userRepository;
     @Mock private PaymentGateway paymentGateway;
+    @Mock private OrderRealtimeNotifier realtimeNotifier;
     @Spy private ObjectMapper objectMapper = new ObjectMapper();
     @InjectMocks private PaymentServiceImpl paymentService;
 
@@ -61,6 +63,7 @@ class PaymentServiceImplTest {
         assertThat(res.getPaymentStatus()).isEqualTo(PaymentStatus.COMPLETED);
         assertThat(res.getGateway()).isEqualTo("mock");
         assertThat(res.getGatewayReference()).isEqualTo("mock_ref123");
+        verify(realtimeNotifier).publish("PAYMENT_COMPLETED", order);
     }
 
     @Test
@@ -82,13 +85,33 @@ class PaymentServiceImplTest {
     void createPayment_isIdempotent_secondAttemptConflicts() {
         when(orderRepository.findByIdForUpdate(50L)).thenReturn(Optional.of(order));
         when(userRepository.findByEmailIgnoreCase("cust@x.com")).thenReturn(Optional.of(customer));
-        when(paymentRepository.findByOrderOrderId(50L)).thenReturn(Optional.of(new Payment()));
+        when(paymentRepository.findByOrderOrderId(50L)).thenReturn(Optional.of(
+                Payment.builder().paymentStatus(PaymentStatus.COMPLETED).build()));
 
         assertThatThrownBy(() -> paymentService.createPayment(
                 PaymentCreateDTO.builder().orderId(50L).paymentMethod("CARD").build(), "cust@x.com"))
                 .isInstanceOf(ConflictException.class);
 
         verify(paymentGateway, never()).charge(anyLong(), anyDouble(), anyString(), anyString());
+    }
+
+    @Test
+    void createPayment_retriesFailedPaymentWithANewGatewayAttempt() {
+        Payment failed = Payment.builder().order(order).paymentStatus(PaymentStatus.FAILED)
+                .attemptCount(1).build();
+        when(orderRepository.findByIdForUpdate(50L)).thenReturn(Optional.of(order));
+        when(userRepository.findByEmailIgnoreCase("cust@x.com")).thenReturn(Optional.of(customer));
+        when(paymentRepository.findByOrderOrderId(50L)).thenReturn(Optional.of(failed));
+        when(paymentGateway.charge(eq(50L), eq(100.0), eq("DEMO_UPI"), contains("attempt-2")))
+                .thenReturn(new ChargeResult(true, "mock_retry", "mock"));
+        when(paymentRepository.save(any(Payment.class))).thenAnswer(i -> i.getArgument(0));
+
+        PaymentResponseDTO response = paymentService.createPayment(
+                PaymentCreateDTO.builder().orderId(50L).paymentMethod("DEMO_UPI").build(), "cust@x.com");
+
+        assertThat(response.getPaymentStatus()).isEqualTo(PaymentStatus.COMPLETED);
+        assertThat(response.getAttemptCount()).isEqualTo(2);
+        assertThat(response.getFailureReason()).isNull();
     }
 
     @Test

@@ -32,6 +32,13 @@ public class RazorpayPaymentGateway implements PaymentGateway {
     }
 
     @Override
+    public String publicCheckoutKey() {
+        // Razorpay key_id is intentionally publishable and is required by checkout.js. The secret
+        // remains server-only and is never exposed through the provider configuration endpoint.
+        return apiKey;
+    }
+
+    @Override
     public ChargeResult charge(Long orderId, double amount, String method, String idempotencyKey) {
         requireKeys();
         try {
